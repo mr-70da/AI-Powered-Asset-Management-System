@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Kinana.Assets.Api/Kinana.Assets.Api.csproj" />
+    <Project Path="src/Kinana.Assets.Application/Kinana.Assets.Application.csproj" />
+    <Project Path="src/Kinana.Assets.Domain/Kinana.Assets.Domain.csproj" />
+    <Project Path="src/Kinana.Assets.Infrastructure/Kinana.Assets.Infrastructure.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,28 @@
+@KinanaAssetManagement_HostAddress = http://localhost:5096
+@AccessToken = <paste JWT from /api/auth/login>
+
+### Health (no auth)
+GET {{KinanaAssetManagement_HostAddress}}/health
+Accept: application/json
+
+### Login (R1.1) - Admin
+POST {{KinanaAssetManagement_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "userName": "admin",
+  "password": "Admin@1234"
+}
+
+### Login - User
+POST {{KinanaAssetManagement_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "userName": "user",
+  "password": "User@1234"
+}
+
+### Current profile
+GET {{KinanaAssetManagement_HostAddress}}/api/auth/me
+Authorization: Bearer {{AccessToken}}
