@@ -1,3 +1,4 @@
+using Kinana.AssetManagement.Application.Common;
 using Kinana.AssetManagement.Application.Exceptions;
 using Kinana.AssetManagement.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -9,15 +10,23 @@ public interface IAssetService
     Task<AssetListResponse> ListAsync(SearchAssetsQuery query, bool includeCost, CancellationToken ct);
 
     Task<AssetResponse> GetByIdAsync(int id, bool includeCost, CancellationToken ct);
+
+    Task<AssetResponse> CreateAsync(CreateAssetRequest request, CancellationToken ct);
+
+    Task<AssetResponse> UpdateAsync(int id, UpdateAssetRequest request, CancellationToken ct);
+
+    Task RetireAsync(int id, CancellationToken ct);
 }
 
 public sealed class AssetService : IAssetService
 {
     private readonly IAssetRepository _repository;
+    private readonly ICurrentUserService _currentUser;
 
-    public AssetService(IAssetRepository repository)
+    public AssetService(IAssetRepository repository, ICurrentUserService currentUser)
     {
         _repository = repository;
+        _currentUser = currentUser;
     }
 
     public async Task<AssetListResponse> ListAsync(SearchAssetsQuery query, bool includeCost, CancellationToken ct)
@@ -95,6 +104,154 @@ public sealed class AssetService : IAssetService
             ?? throw new NotFoundException($"Asset {id} was not found.");
 
         return ToResponse(asset, includeCost);
+    }
+
+    public async Task<AssetResponse> CreateAsync(CreateAssetRequest request, CancellationToken ct)
+    {
+        await ValidateReferencesAsync(
+            request.CategoryId,
+            request.AssetTypeId,
+            request.DepartmentId,
+            request.AssignedEmployeeId,
+            request.LocationId,
+            ct);
+
+        if (await _repository.Assets.AnyAsync(a => a.AssetCode == request.AssetCode, ct))
+        {
+            throw new ConflictException($"An asset with code '{request.AssetCode}' already exists.");
+        }
+
+        if (request.SerialNumber is not null
+            && await _repository.Assets.AnyAsync(a => a.SerialNumber == request.SerialNumber, ct))
+        {
+            throw new ConflictException($"An asset with serial number '{request.SerialNumber}' already exists.");
+        }
+
+        var now = DateTime.UtcNow;
+        var asset = new Asset
+        {
+            AssetCode = request.AssetCode,
+            AssetName = request.AssetName,
+            Description = request.Description,
+            CategoryId = request.CategoryId,
+            AssetTypeId = request.AssetTypeId,
+            Manufacturer = request.Manufacturer,
+            Model = request.Model,
+            SerialNumber = request.SerialNumber,
+            PurchaseDate = request.PurchaseDate,
+            PurchaseCost = request.PurchaseCost,
+            WarrantyExpiryDate = request.WarrantyExpiryDate,
+            Status = request.Status,
+            DepartmentId = request.DepartmentId,
+            AssignedEmployeeId = request.AssignedEmployeeId,
+            LocationId = request.LocationId,
+            CreatedByUserId = _currentUser.UserId,
+            CreatedAtUtc = now,
+            ModifiedByUserId = _currentUser.UserId,
+            ModifiedAtUtc = now
+        };
+
+        await _repository.AddAsync(asset, ct);
+
+        return await GetByIdAsync(asset.Id, includeCost: true, ct);
+    }
+
+    public async Task<AssetResponse> UpdateAsync(int id, UpdateAssetRequest request, CancellationToken ct)
+    {
+        var asset = await _repository.Assets.FirstOrDefaultAsync(a => a.Id == id, ct)
+            ?? throw new NotFoundException($"Asset {id} was not found.");
+
+        await ValidateReferencesAsync(
+            request.CategoryId,
+            request.AssetTypeId,
+            request.DepartmentId,
+            request.AssignedEmployeeId,
+            request.LocationId,
+            ct);
+
+        if (await _repository.Assets.AnyAsync(a => a.Id != id && a.AssetCode == request.AssetCode, ct))
+        {
+            throw new ConflictException($"An asset with code '{request.AssetCode}' already exists.");
+        }
+
+        if (request.SerialNumber is not null
+            && await _repository.Assets.AnyAsync(a => a.Id != id && a.SerialNumber == request.SerialNumber, ct))
+        {
+            throw new ConflictException($"An asset with serial number '{request.SerialNumber}' already exists.");
+        }
+
+        asset.AssetCode = request.AssetCode;
+        asset.AssetName = request.AssetName;
+        asset.Description = request.Description;
+        asset.CategoryId = request.CategoryId;
+        asset.AssetTypeId = request.AssetTypeId;
+        asset.Manufacturer = request.Manufacturer;
+        asset.Model = request.Model;
+        asset.SerialNumber = request.SerialNumber;
+        asset.PurchaseDate = request.PurchaseDate;
+        asset.PurchaseCost = request.PurchaseCost;
+        asset.WarrantyExpiryDate = request.WarrantyExpiryDate;
+        asset.Status = request.Status;
+        asset.DepartmentId = request.DepartmentId;
+        asset.AssignedEmployeeId = request.AssignedEmployeeId;
+        asset.LocationId = request.LocationId;
+        asset.ModifiedByUserId = _currentUser.UserId;
+        asset.ModifiedAtUtc = DateTime.UtcNow;
+
+        await _repository.SaveChangesAsync(ct);
+
+        return await GetByIdAsync(id, includeCost: true, ct);
+    }
+
+    public async Task RetireAsync(int id, CancellationToken ct)
+    {
+        var asset = await _repository.Assets.FirstOrDefaultAsync(a => a.Id == id, ct)
+            ?? throw new NotFoundException($"Asset {id} was not found.");
+
+        if (asset.Status == "Retired")
+        {
+            throw new ConflictException($"Asset {id} is already retired.");
+        }
+
+        asset.Status = "Retired";
+        asset.ModifiedByUserId = _currentUser.UserId;
+        asset.ModifiedAtUtc = DateTime.UtcNow;
+
+        await _repository.SaveChangesAsync(ct);
+    }
+
+    private async Task ValidateReferencesAsync(
+        int categoryId,
+        int assetTypeId,
+        int? departmentId,
+        int? employeeId,
+        int? locationId,
+        CancellationToken ct)
+    {
+        if (!await _repository.Categories.AnyAsync(c => c.Id == categoryId, ct))
+        {
+            throw new ValidationException($"Category {categoryId} does not exist.");
+        }
+
+        if (!await _repository.AssetTypes.AnyAsync(t => t.Id == assetTypeId, ct))
+        {
+            throw new ValidationException($"Asset type {assetTypeId} does not exist.");
+        }
+
+        if (departmentId.HasValue && !await _repository.Departments.AnyAsync(d => d.Id == departmentId.Value, ct))
+        {
+            throw new ValidationException($"Department {departmentId} does not exist.");
+        }
+
+        if (employeeId.HasValue && !await _repository.Employees.AnyAsync(e => e.Id == employeeId.Value, ct))
+        {
+            throw new ValidationException($"Employee {employeeId} does not exist.");
+        }
+
+        if (locationId.HasValue && !await _repository.Locations.AnyAsync(l => l.Id == locationId.Value, ct))
+        {
+            throw new ValidationException($"Location {locationId} does not exist.");
+        }
     }
 
     private static IQueryable<Asset> ApplyFilters(IQueryable<Asset> query, SearchAssetsQuery q)

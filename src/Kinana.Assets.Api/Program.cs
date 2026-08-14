@@ -1,7 +1,9 @@
 using System.Text;
 using Kinana.AssetManagement.Api.Middleware;
+using Kinana.AssetManagement.Api.Services;
 using Kinana.AssetManagement.Application;
 using Kinana.AssetManagement.Application.Auth;
+using Kinana.AssetManagement.Application.Common;
 using Kinana.AssetManagement.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc.Authorization;
@@ -14,6 +16,9 @@ builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 var jwtSettings = builder.Configuration
     .GetSection(JwtSettings.SectionName)
