@@ -1,5 +1,8 @@
 using System.Text;
+using Kinana.AssetManagement.Api.Middleware;
+using Kinana.AssetManagement.Application;
 using Kinana.AssetManagement.Application.Auth;
+using Kinana.AssetManagement.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.IdentityModel.Tokens;
@@ -7,6 +10,8 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
 
 var jwtSettings = builder.Configuration
     .GetSection(JwtSettings.SectionName)
@@ -57,6 +62,8 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.UseMiddleware<ApiExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 
