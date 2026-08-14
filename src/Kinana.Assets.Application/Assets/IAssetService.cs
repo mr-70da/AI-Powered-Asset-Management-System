@@ -48,6 +48,15 @@ public sealed class AssetService : IAssetService
 
     public async Task<AssetListResponse> ListAsync(SearchAssetsQuery query, bool includeCost, CancellationToken ct)
     {
+        var role = includeCost ? "Admin" : "User";
+        var cacheKey = _cacheKeys.AssetList(role, query);
+
+        var cached = await _cache.GetAsync<AssetListResponse>(cacheKey, ct);
+        if (cached is not null)
+        {
+            return cached;
+        }
+
         var page = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, 100);
 
@@ -90,7 +99,11 @@ public sealed class AssetService : IAssetService
 
         var totalCount = await filtered.CountAsync(ct);
 
-        return new AssetListResponse(items, totalCount, page, pageSize);
+        var response = new AssetListResponse(items, totalCount, page, pageSize);
+
+        await _cache.SetAsync(cacheKey, response, _cacheSettings.AssetTtl, ct);
+
+        return response;
     }
 
     public async Task<AssetResponse> GetByIdAsync(int id, bool includeCost, CancellationToken ct)
