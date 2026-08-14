@@ -66,6 +66,21 @@ public sealed record UpdateAssetRequest
     public int? LocationId { get; init; }
 }
 
+public sealed record TransferAssetRequest
+{
+    public int? ToDepartmentId { get; init; }
+
+    public int? ToEmployeeId { get; init; }
+
+    public int? ToLocationId { get; init; }
+
+    public DateOnly TransferDate { get; init; }
+
+    public string Reason { get; init; } = string.Empty;
+
+    public byte[]? RowVersion { get; init; }
+}
+
 public sealed record AssetTransferResponse(
     int Id,
     DateTime TransferDateUtc,

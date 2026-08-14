@@ -63,3 +63,24 @@ public sealed class UpdateAssetRequestValidator : AbstractValidator<UpdateAssetR
             .MaximumLength(30);
     }
 }
+
+public sealed class TransferAssetRequestValidator : AbstractValidator<TransferAssetRequest>
+{
+    public TransferAssetRequestValidator()
+    {
+        RuleFor(x => x.TransferDate)
+            .NotEmpty()
+            .WithMessage("Transfer date is required.")
+            .Must(date => date <= DateOnly.FromDateTime(DateTime.UtcNow))
+            .WithMessage("Transfer date cannot be in the future.");
+
+        RuleFor(x => x.Reason)
+            .NotEmpty()
+            .WithMessage("Reason is required.")
+            .MaximumLength(500);
+
+        RuleFor(x => x.RowVersion)
+            .NotNull()
+            .WithMessage("RowVersion is required. Fetch the asset first to get its current version.");
+    }
+}
