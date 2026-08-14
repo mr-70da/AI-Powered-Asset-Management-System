@@ -1,3 +1,4 @@
+using Kinana.AssetManagement.Application.Assets;
 using Kinana.AssetManagement.Application.Auth;
 using Kinana.AssetManagement.Infrastructure.Data;
 using Kinana.AssetManagement.Infrastructure.Security;
@@ -17,6 +18,7 @@ public static class DependencyInjection
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
         services.AddScoped<IAuthRepository, AuthRepository>();
+        services.AddScoped<IAssetRepository, AssetRepository>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
