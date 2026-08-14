@@ -71,6 +71,7 @@ public sealed class AssetService : IAssetService
                 a.ModifiedByUserId,
                 a.ModifiedByUser != null ? a.ModifiedByUser.UserName : null,
                 a.ModifiedAtUtc,
+                a.RowVersion,
                 Array.Empty<AssetTransferResponse>()))
             .ToListAsync(ct);
 
@@ -202,7 +203,15 @@ public sealed class AssetService : IAssetService
         asset.ModifiedByUserId = _currentUser.UserId;
         asset.ModifiedAtUtc = DateTime.UtcNow;
 
-        await _repository.SaveChangesAsync(ct);
+        try
+        {
+            await _repository.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictException(
+                "This asset was modified by someone else since it was loaded. Refresh the asset and try again.");
+        }
 
         return await GetByIdAsync(id, includeCost: true, ct);
     }
@@ -226,45 +235,61 @@ public sealed class AssetService : IAssetService
 
     public async Task TransferAsync(int id, TransferAssetRequest request, CancellationToken ct)
     {
-        var asset = await _repository.Assets.FirstOrDefaultAsync(a => a.Id == id, ct)
-            ?? throw new NotFoundException($"Asset {id} was not found.");
-
-        if (asset.Status == "Retired")
+        await _repository.ExecuteInTransactionAsync(async token =>
         {
-            throw new ValidationException($"Asset {id} is retired and cannot be transferred.");
-        }
+            var asset = await _repository.Assets.FirstOrDefaultAsync(a => a.Id == id, token)
+                ?? throw new NotFoundException($"Asset {id} was not found.");
 
-        if (asset.DepartmentId == request.ToDepartmentId
-            && asset.AssignedEmployeeId == request.ToEmployeeId
-            && asset.LocationId == request.ToLocationId)
-        {
-            throw new ValidationException("A transfer must change the department, employee, or location.");
-        }
+            if (asset.Status == "Retired")
+            {
+                throw new ValidationException($"Asset {id} is retired and cannot be transferred.");
+            }
 
-        await ValidateTransferReferencesAsync(request, ct);
+            if (asset.DepartmentId == request.ToDepartmentId
+                && asset.AssignedEmployeeId == request.ToEmployeeId
+                && asset.LocationId == request.ToLocationId)
+            {
+                throw new ValidationException("A transfer must change the department, employee, or location.");
+            }
 
-        _repository.AddTransfer(new AssetTransfer
-        {
-            AssetId = asset.Id,
-            FromDepartmentId = asset.DepartmentId,
-            ToDepartmentId = request.ToDepartmentId,
-            FromEmployeeId = asset.AssignedEmployeeId,
-            ToEmployeeId = request.ToEmployeeId,
-            FromLocationId = asset.LocationId,
-            ToLocationId = request.ToLocationId,
-            TransferDateUtc = request.TransferDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
-            Reason = request.Reason,
-            TransferredByUserId = _currentUser.UserId,
-            CreatedAtUtc = DateTime.UtcNow
-        });
+            await ValidateTransferReferencesAsync(request, token);
 
-        asset.DepartmentId = request.ToDepartmentId;
-        asset.AssignedEmployeeId = request.ToEmployeeId;
-        asset.LocationId = request.ToLocationId;
-        asset.ModifiedByUserId = _currentUser.UserId;
-        asset.ModifiedAtUtc = DateTime.UtcNow;
+            _repository.AddTransfer(new AssetTransfer
+            {
+                AssetId = asset.Id,
+                FromDepartmentId = asset.DepartmentId,
+                ToDepartmentId = request.ToDepartmentId,
+                FromEmployeeId = asset.AssignedEmployeeId,
+                ToEmployeeId = request.ToEmployeeId,
+                FromLocationId = asset.LocationId,
+                ToLocationId = request.ToLocationId,
+                TransferDateUtc = request.TransferDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
+                Reason = request.Reason,
+                TransferredByUserId = _currentUser.UserId,
+                CreatedAtUtc = DateTime.UtcNow
+            });
 
-        await _repository.SaveChangesAsync(ct);
+            asset.DepartmentId = request.ToDepartmentId;
+            asset.AssignedEmployeeId = request.ToEmployeeId;
+            asset.LocationId = request.ToLocationId;
+            asset.ModifiedByUserId = _currentUser.UserId;
+            asset.ModifiedAtUtc = DateTime.UtcNow;
+
+            if (request.RowVersion is not null)
+            {
+                _repository.SetOriginalRowVersion(asset, request.RowVersion);
+            }
+
+            try
+            {
+                await _repository.SaveChangesAsync(token);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                throw new ConflictException(
+                    "This asset was modified by someone else since it was loaded. Refresh the asset and try again.");
+            }
+        }, ct);
     }
 
     public async Task<IReadOnlyList<AssetTransferResponse>> GetTransfersAsync(int id, CancellationToken ct)
@@ -477,6 +502,7 @@ public sealed class AssetService : IAssetService
             asset.ModifiedByUserId,
             asset.ModifiedByUser?.UserName,
             asset.ModifiedAtUtc,
+            asset.RowVersion,
             transfers);
     }
 }

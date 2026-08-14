@@ -16,11 +16,13 @@
      - Every table has an INT IDENTITY(1,1) primary key. Simple, fast,
        and easy to reason about — I didn't reach for GUIDs because I don't
        have a strong reason to (no offline/multi-database sync here).
-     - I did NOT add a ROWVERSION column for optimistic concurrency
-       (that would help with R3.5, "two transfers happening at the same
-       time"). That's a "Should", not a "Must", and I'd rather ship a
-       schema I fully understand than one with a feature I can't explain.
-       If I have time later, I can add it with a simple ALTER TABLE.
+      - I DID add a RowVersion column (rowversion type) to Assets for
+        optimistic concurrency (R3.5, "two transfers happening at the
+        same time"). SQL Server manages the value automatically - every
+        INSERT/UPDATE bumps it - and EF Core uses it in the WHERE clause
+        of UPDATE statements to detect when a client was editing a stale
+        copy of the asset. The 003_asset_rowversion.sql script adds the
+        same column idempotently to databases created before this one.
      - I did NOT add a filtered/partial unique index on SerialNumber.
        In SQL Server, a normal UNIQUE constraint only allows ONE row with
        a NULL value in that column — so if two assets both have no
@@ -193,6 +195,11 @@ BEGIN
         CreatedAtUtc       DATETIME2(3) NOT NULL DEFAULT (SYSUTCDATETIME()),
         ModifiedByUserId   INT NULL,
         ModifiedAtUtc      DATETIME2(3) NOT NULL DEFAULT (SYSUTCDATETIME()),
+
+        -- Optimistic-concurrency token (R3.5). SQL Server manages the value
+        -- itself - the app never reads or writes it directly beyond sending
+        -- it back on transfers so EF can use it in the UPDATE's WHERE clause.
+        RowVersion         rowversion,
 
         CONSTRAINT CK_Assets_PurchaseCost_Positive CHECK (PurchaseCost IS NULL OR PurchaseCost >= 0),
 

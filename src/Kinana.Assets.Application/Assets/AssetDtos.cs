@@ -121,6 +121,7 @@ public sealed record AssetResponse(
     int? ModifiedByUserId,
     string? ModifiedByUserName,
     DateTime? ModifiedAtUtc,
+    byte[]? RowVersion,
     IReadOnlyList<AssetTransferResponse> Transfers);
 
 public sealed record AssetListResponse(

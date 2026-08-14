@@ -22,5 +22,9 @@ public interface IAssetRepository
 
     void AddTransfer(AssetTransfer transfer);
 
+    Task ExecuteInTransactionAsync(Func<CancellationToken, Task> operation, CancellationToken ct);
+
+    void SetOriginalRowVersion(Asset asset, byte[]? rowVersion);
+
     Task<int> SaveChangesAsync(CancellationToken ct);
 }
