@@ -45,6 +45,8 @@ public partial class Asset
 
     public DateTime ModifiedAtUtc { get; set; }
 
+    public byte[]? RowVersion { get; set; }
+
     public virtual ICollection<AssetTransfer> AssetTransfers { get; set; } = new List<AssetTransfer>();
 
     public virtual AssetType AssetType { get; set; } = null!;
