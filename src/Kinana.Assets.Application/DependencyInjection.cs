@@ -14,6 +14,7 @@ public static class DependencyInjection
 
         services.AddScoped<IValidator<CreateAssetRequest>, CreateAssetRequestValidator>();
         services.AddScoped<IValidator<UpdateAssetRequest>, UpdateAssetRequestValidator>();
+        services.AddScoped<IValidator<TransferAssetRequest>, TransferAssetRequestValidator>();
         services.AddScoped<IAssetService, AssetService>();
 
         return services;

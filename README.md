@@ -44,6 +44,8 @@ login, profile, and health flows.
 | `GET /api/assets/{id}` | Any authenticated user | Asset detail incl. current assignment and transfer history (R2.3) |
 | `POST /api/assets`, `PUT /api/assets/{id}` | Admin | Create / edit asset (R2.4) |
 | `POST /api/assets/{id}/retire` | Admin | Retire an asset — soft delete (R2.5) |
+| `POST /api/assets/{id}/transfer` | Admin | Record a transfer — transaction + optimistic concurrency (R3.3, R3.4, R3.5) |
+| `GET /api/assets/{id}/transfers` | Any authenticated user | Full transfer history in chronological order (R3.2) |
 | `GET /health` | Anonymous | Liveness check |
 
 Every other endpoint requires a valid token; a missing/invalid token returns `401`
@@ -68,3 +70,39 @@ to `null` inside the data-access projection — it never leaves the database lay
 a `User` response, rather than merely being hidden in the UI. The same flag guards
 list and detail responses, and cache keys (once caching lands) must incorporate the
 role so an Admin response is never served to a `User`.
+
+## Asset transfers (R3)
+
+### Transactional and immutable (R3.1, R3.3)
+
+A transfer records the previous and new employee / department / location, the
+transfer date, the reason, and who performed it. The `AssetTransfers` row is
+append-only — we never edit or delete it, so the history is immutable. Both the
+asset assignment change and the history row are written inside one explicit
+database transaction (`BeginTransactionAsync` / `CommitAsync`), so a failure at
+any point leaves the asset untouched and no partial history entry behind.
+
+### Concurrency (R3.5)
+
+Every `Asset` row carries a SQL Server `rowversion` column that EF Core maps with
+`.IsRowVersion()`. When the client loads an asset it receives the version, and must
+send it back in `POST /api/assets/{id}/transfer`. EF Core uses that version in the
+`UPDATE ... WHERE` clause; if the row changed since it was loaded, zero rows are
+affected and a `409 Conflict` ("concurrency conflict") is returned instead of
+silently overwriting someone else's change.
+
+### History order (R3.2)
+
+`GET /api/assets/{id}/transfers` returns the full history sorted oldest-first so
+the "life story" of an asset reads chronologically. (The prompt sketch showed a
+descending sort; chronological ascending was chosen deliberately so the detail
+view and the history endpoint agree and the story reads top to bottom.)
+
+### Permission note
+
+The prompt suggested decorating both endpoints with `[Authorize(Roles = "Admin")]`,
+but the requirement's permission matrix allows *any* authenticated user to *view*
+transfer history and reserves *creating* transfers for Admins. The implementation
+follows the matrix: `POST .../transfer` is Admin-only, `GET .../transfers` is open
+to any authenticated user. If history should be Admin-only instead, that is a
+one-line change on the endpoint.

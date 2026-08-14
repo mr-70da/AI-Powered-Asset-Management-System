@@ -12,15 +12,18 @@ public sealed class AssetsController : ControllerBase
     private readonly IAssetService _assetService;
     private readonly IValidator<CreateAssetRequest> _createValidator;
     private readonly IValidator<UpdateAssetRequest> _updateValidator;
+    private readonly IValidator<TransferAssetRequest> _transferValidator;
 
     public AssetsController(
         IAssetService assetService,
         IValidator<CreateAssetRequest> createValidator,
-        IValidator<UpdateAssetRequest> updateValidator)
+        IValidator<UpdateAssetRequest> updateValidator,
+        IValidator<TransferAssetRequest> transferValidator)
     {
         _assetService = assetService;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _transferValidator = transferValidator;
     }
 
     [HttpGet]
@@ -70,6 +73,25 @@ public sealed class AssetsController : ControllerBase
         await _assetService.RetireAsync(id, ct);
         return NoContent();
     }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{id:int}/transfer")]
+    public async Task<IActionResult> Transfer(int id, TransferAssetRequest request, CancellationToken ct)
+    {
+        var validationResult = await _transferValidator.ValidateAsync(request, ct);
+        if (!validationResult.IsValid)
+        {
+            AddModelErrors(validationResult);
+            return ValidationProblem(ModelState);
+        }
+
+        await _assetService.TransferAsync(id, request, ct);
+        return NoContent();
+    }
+
+    [HttpGet("{id:int}/transfers")]
+    public async Task<ActionResult<IReadOnlyList<AssetTransferResponse>>> GetTransfers(int id, CancellationToken ct)
+        => Ok(await _assetService.GetTransfersAsync(id, ct));
 
     private void AddModelErrors(FluentValidation.Results.ValidationResult validationResult)
     {
