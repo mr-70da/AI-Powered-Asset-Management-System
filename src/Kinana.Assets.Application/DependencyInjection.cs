@@ -1,6 +1,7 @@
 using FluentValidation;
 using Kinana.AssetManagement.Application.Assets;
 using Kinana.AssetManagement.Application.Auth;
+using Kinana.AssetManagement.Application.Lookups;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Kinana.AssetManagement.Application;
@@ -16,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<IValidator<UpdateAssetRequest>, UpdateAssetRequestValidator>();
         services.AddScoped<IValidator<TransferAssetRequest>, TransferAssetRequestValidator>();
         services.AddScoped<IAssetService, AssetService>();
+        services.AddScoped<ILookupService, LookupService>();
 
         return services;
     }

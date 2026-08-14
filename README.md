@@ -46,6 +46,7 @@ login, profile, and health flows.
 | `POST /api/assets/{id}/retire` | Admin | Retire an asset — soft delete (R2.5) |
 | `POST /api/assets/{id}/transfer` | Admin | Record a transfer — transaction + optimistic concurrency (R3.3, R3.4, R3.5) |
 | `GET /api/assets/{id}/transfers` | Any authenticated user | Full transfer history in chronological order (R3.2) |
+| `GET /api/lookups` | Any authenticated user | Reference data (categories, types, departments, locations, employees) — cached (R5.1) |
 | `GET /health` | Anonymous | Liveness check |
 
 Every other endpoint requires a valid token; a missing/invalid token returns `401`
