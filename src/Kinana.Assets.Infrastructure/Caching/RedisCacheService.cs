@@ -19,6 +19,9 @@ public sealed class RedisCacheService : ICacheService
 
         var configuration = ConfigurationOptions.Parse(settings.Value.ConnectionString);
         configuration.AbortOnConnectFail = false;
+        configuration.ConnectTimeout = 2000;
+        configuration.SyncTimeout = 2000;
+        configuration.AsyncTimeout = 2000;
         _connection = ConnectionMultiplexer.Connect(configuration);
     }
 
