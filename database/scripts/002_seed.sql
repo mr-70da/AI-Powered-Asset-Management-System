@@ -1,0 +1,320 @@
+/* ============================================================================
+   AI-Powered Asset Management System
+   Script  : 002_seed.sql
+   Purpose : Fill the empty schema with reference data and a few sample
+             assets, so the app has something to show as soon as it runs.
+
+   How to run:
+     Run 001_schema.sql first, then this file, against the same database.
+     Safe to run more than once — every INSERT is guarded with a
+     "WHERE NOT EXISTS (...)" check so it won't create duplicate rows.
+
+   Note on app user accounts (admin / user login):
+     I'm seeding the Admin and User login accounts at API startup instead
+     of in this script, because the password hash has to be produced by
+     whatever hashing library the API uses (e.g. ASP.NET Identity's
+     PasswordHasher). Generating a correct hash by hand in SQL isn't
+     something I can do reliably, so the API's Program.cs checks "does an
+     admin user already exist?" and creates one if not. Credentials are
+     documented in the README (R1.5).
+   ============================================================================ */
+
+SET NOCOUNT ON;
+GO
+
+-- ----------------------------------------------------------------------------
+-- 1. Roles
+-- ----------------------------------------------------------------------------
+
+INSERT INTO dbo.Roles (Name)
+SELECT N'Admin'
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles WHERE Name = N'Admin');
+GO
+
+INSERT INTO dbo.Roles (Name)
+SELECT N'User'
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles WHERE Name = N'User');
+GO
+
+-- ----------------------------------------------------------------------------
+-- 2. Organisation, departments, locations, employees
+-- ----------------------------------------------------------------------------
+
+INSERT INTO dbo.Organisations (Name)
+SELECT N'Kinana Business Solutions'
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Organisations WHERE Name = N'Kinana Business Solutions');
+GO
+
+-- I look up the OrganisationId once into a variable, then reuse it below.
+-- This is easier for me to follow than joining a big VALUES table onto
+-- dbo.Organisations every time.
+DECLARE @OrgId INT = (SELECT Id FROM dbo.Organisations WHERE Name = N'Kinana Business Solutions');
+
+INSERT INTO dbo.Departments (Name, OrganisationId)
+SELECT N'Presales', @OrgId WHERE NOT EXISTS (SELECT 1 FROM dbo.Departments WHERE Name = N'Presales');
+INSERT INTO dbo.Departments (Name, OrganisationId)
+SELECT N'Delivery', @OrgId WHERE NOT EXISTS (SELECT 1 FROM dbo.Departments WHERE Name = N'Delivery');
+INSERT INTO dbo.Departments (Name, OrganisationId)
+SELECT N'Finance', @OrgId WHERE NOT EXISTS (SELECT 1 FROM dbo.Departments WHERE Name = N'Finance');
+INSERT INTO dbo.Departments (Name, OrganisationId)
+SELECT N'Human Resources', @OrgId WHERE NOT EXISTS (SELECT 1 FROM dbo.Departments WHERE Name = N'Human Resources');
+INSERT INTO dbo.Departments (Name, OrganisationId)
+SELECT N'Operations', @OrgId WHERE NOT EXISTS (SELECT 1 FROM dbo.Departments WHERE Name = N'Operations');
+GO
+
+INSERT INTO dbo.Locations (Name)
+SELECT N'Cairo HQ - Floor 1' WHERE NOT EXISTS (SELECT 1 FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 1');
+INSERT INTO dbo.Locations (Name)
+SELECT N'Cairo HQ - Floor 2' WHERE NOT EXISTS (SELECT 1 FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 2');
+INSERT INTO dbo.Locations (Name)
+SELECT N'Remote - Home Office' WHERE NOT EXISTS (SELECT 1 FROM dbo.Locations WHERE Name = N'Remote - Home Office');
+GO
+
+-- One INSERT per employee, looking up their DepartmentId by name.
+-- Verbose, but every line does exactly one obvious thing.
+INSERT INTO dbo.Employees (Name, Email, DepartmentId)
+SELECT N'Ahmed Hassan', N'ahmed.hassan@kinanaict.com', (SELECT Id FROM dbo.Departments WHERE Name = N'Presales')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Employees WHERE Email = N'ahmed.hassan@kinanaict.com');
+
+INSERT INTO dbo.Employees (Name, Email, DepartmentId)
+SELECT N'Sara Mohamed', N'sara.mohamed@kinanaict.com', (SELECT Id FROM dbo.Departments WHERE Name = N'Delivery')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Employees WHERE Email = N'sara.mohamed@kinanaict.com');
+
+INSERT INTO dbo.Employees (Name, Email, DepartmentId)
+SELECT N'Omar Khalil', N'omar.khalil@kinanaict.com', (SELECT Id FROM dbo.Departments WHERE Name = N'Finance')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Employees WHERE Email = N'omar.khalil@kinanaict.com');
+
+INSERT INTO dbo.Employees (Name, Email, DepartmentId)
+SELECT N'Nour Adel', N'nour.adel@kinanaict.com', (SELECT Id FROM dbo.Departments WHERE Name = N'Human Resources')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Employees WHERE Email = N'nour.adel@kinanaict.com');
+
+INSERT INTO dbo.Employees (Name, Email, DepartmentId)
+SELECT N'Mostafa El-Sayed', N'mostafa.elsayed@kinanaict.com', (SELECT Id FROM dbo.Departments WHERE Name = N'Operations')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Employees WHERE Email = N'mostafa.elsayed@kinanaict.com');
+GO
+
+-- ----------------------------------------------------------------------------
+-- 3. Categories and asset types
+-- ----------------------------------------------------------------------------
+
+INSERT INTO dbo.Categories (Name) SELECT N'Computers'        WHERE NOT EXISTS (SELECT 1 FROM dbo.Categories WHERE Name = N'Computers');
+INSERT INTO dbo.Categories (Name) SELECT N'Networking'       WHERE NOT EXISTS (SELECT 1 FROM dbo.Categories WHERE Name = N'Networking');
+INSERT INTO dbo.Categories (Name) SELECT N'Office Equipment' WHERE NOT EXISTS (SELECT 1 FROM dbo.Categories WHERE Name = N'Office Equipment');
+INSERT INTO dbo.Categories (Name) SELECT N'Software'         WHERE NOT EXISTS (SELECT 1 FROM dbo.Categories WHERE Name = N'Software');
+GO
+
+INSERT INTO dbo.AssetTypes (Name) SELECT N'Laptop'           WHERE NOT EXISTS (SELECT 1 FROM dbo.AssetTypes WHERE Name = N'Laptop');
+INSERT INTO dbo.AssetTypes (Name) SELECT N'Desktop'          WHERE NOT EXISTS (SELECT 1 FROM dbo.AssetTypes WHERE Name = N'Desktop');
+INSERT INTO dbo.AssetTypes (Name) SELECT N'Monitor'          WHERE NOT EXISTS (SELECT 1 FROM dbo.AssetTypes WHERE Name = N'Monitor');
+INSERT INTO dbo.AssetTypes (Name) SELECT N'Printer'          WHERE NOT EXISTS (SELECT 1 FROM dbo.AssetTypes WHERE Name = N'Printer');
+INSERT INTO dbo.AssetTypes (Name) SELECT N'Phone'            WHERE NOT EXISTS (SELECT 1 FROM dbo.AssetTypes WHERE Name = N'Phone');
+INSERT INTO dbo.AssetTypes (Name) SELECT N'Switch'           WHERE NOT EXISTS (SELECT 1 FROM dbo.AssetTypes WHERE Name = N'Switch');
+INSERT INTO dbo.AssetTypes (Name) SELECT N'Server'           WHERE NOT EXISTS (SELECT 1 FROM dbo.AssetTypes WHERE Name = N'Server');
+INSERT INTO dbo.AssetTypes (Name) SELECT N'Software License' WHERE NOT EXISTS (SELECT 1 FROM dbo.AssetTypes WHERE Name = N'Software License');
+GO
+
+-- ----------------------------------------------------------------------------
+-- 4. Assets
+--    One INSERT per asset. Each one looks up its Category/AssetType/
+--    Department/Employee/Location id by name in a subquery. It's more
+--    lines than a clever multi-row join, but I can read every single one
+--    top to bottom and know exactly what it does.
+-- ----------------------------------------------------------------------------
+
+INSERT INTO dbo.Assets
+    (AssetCode, AssetName, Description, CategoryId, AssetTypeId, Manufacturer, Model, SerialNumber,
+     PurchaseDate, PurchaseCost, WarrantyExpiryDate, Status, DepartmentId, AssignedEmployeeId, LocationId)
+SELECT N'AST-0001', N'Dell Latitude 5540', N'Primary laptop for presales engineering.',
+       (SELECT Id FROM dbo.Categories WHERE Name = N'Computers'),
+       (SELECT Id FROM dbo.AssetTypes WHERE Name = N'Laptop'),
+       N'Dell', N'Latitude 5540', N'DLR1001',
+       '2024-01-15', 2100.00, '2027-01-15', N'Assigned',
+       (SELECT Id FROM dbo.Departments WHERE Name = N'Presales'),
+       (SELECT Id FROM dbo.Employees WHERE Name = N'Ahmed Hassan'),
+       (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 1')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Assets WHERE AssetCode = N'AST-0001');
+
+INSERT INTO dbo.Assets
+    (AssetCode, AssetName, Description, CategoryId, AssetTypeId, Manufacturer, Model, SerialNumber,
+     PurchaseDate, PurchaseCost, WarrantyExpiryDate, Status, DepartmentId, AssignedEmployeeId, LocationId)
+SELECT N'AST-0002', N'Lenovo ThinkPad X1 Carbon', N'Ultrabook for delivery consultants.',
+       (SELECT Id FROM dbo.Categories WHERE Name = N'Computers'),
+       (SELECT Id FROM dbo.AssetTypes WHERE Name = N'Laptop'),
+       N'Lenovo', N'ThinkPad X1 Carbon', N'LNV2001',
+       '2024-03-02', 1850.00, '2027-03-02', N'Assigned',
+       (SELECT Id FROM dbo.Departments WHERE Name = N'Delivery'),
+       (SELECT Id FROM dbo.Employees WHERE Name = N'Sara Mohamed'),
+       (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 2')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Assets WHERE AssetCode = N'AST-0002');
+
+INSERT INTO dbo.Assets
+    (AssetCode, AssetName, Description, CategoryId, AssetTypeId, Manufacturer, Model, SerialNumber,
+     PurchaseDate, PurchaseCost, WarrantyExpiryDate, Status, DepartmentId, AssignedEmployeeId, LocationId)
+SELECT N'AST-0003', N'HP EliteDesk 800 G6', N'Pool desktop in the delivery lab.',
+       (SELECT Id FROM dbo.Categories WHERE Name = N'Computers'),
+       (SELECT Id FROM dbo.AssetTypes WHERE Name = N'Desktop'),
+       N'HP', N'EliteDesk 800 G6', N'HP3001',
+       '2023-08-20', 1200.00, '2026-08-20', N'Available',
+       NULL, NULL,
+       (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 2')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Assets WHERE AssetCode = N'AST-0003');
+
+INSERT INTO dbo.Assets
+    (AssetCode, AssetName, Description, CategoryId, AssetTypeId, Manufacturer, Model, SerialNumber,
+     PurchaseDate, PurchaseCost, WarrantyExpiryDate, Status, DepartmentId, AssignedEmployeeId, LocationId)
+SELECT N'AST-0004', N'Dell P2422H Monitor', N'24-inch full HD monitor.',
+       (SELECT Id FROM dbo.Categories WHERE Name = N'Computers'),
+       (SELECT Id FROM dbo.AssetTypes WHERE Name = N'Monitor'),
+       N'Dell', N'P2422H', N'DLR4001',
+       '2024-01-15', 280.00, '2027-01-15', N'Assigned',
+       (SELECT Id FROM dbo.Departments WHERE Name = N'Presales'),
+       (SELECT Id FROM dbo.Employees WHERE Name = N'Ahmed Hassan'),
+       (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 1')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Assets WHERE AssetCode = N'AST-0004');
+
+INSERT INTO dbo.Assets
+    (AssetCode, AssetName, Description, CategoryId, AssetTypeId, Manufacturer, Model, SerialNumber,
+     PurchaseDate, PurchaseCost, WarrantyExpiryDate, Status, DepartmentId, AssignedEmployeeId, LocationId)
+SELECT N'AST-0005', N'Cisco Catalyst 9200 Switch', N'Core access switch, floor 1.',
+       (SELECT Id FROM dbo.Categories WHERE Name = N'Networking'),
+       (SELECT Id FROM dbo.AssetTypes WHERE Name = N'Switch'),
+       N'Cisco', N'Catalyst 9200', N'CSC5001',
+       '2023-11-05', 3400.00, '2026-11-05', N'Under Maintenance',
+       (SELECT Id FROM dbo.Departments WHERE Name = N'Operations'),
+       NULL,
+       (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 1')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Assets WHERE AssetCode = N'AST-0005');
+
+INSERT INTO dbo.Assets
+    (AssetCode, AssetName, Description, CategoryId, AssetTypeId, Manufacturer, Model, SerialNumber,
+     PurchaseDate, PurchaseCost, WarrantyExpiryDate, Status, DepartmentId, AssignedEmployeeId, LocationId)
+SELECT N'AST-0006', N'Canon iR-ADV C3325 Printer', N'Shared colour multifunction printer.',
+       (SELECT Id FROM dbo.Categories WHERE Name = N'Office Equipment'),
+       (SELECT Id FROM dbo.AssetTypes WHERE Name = N'Printer'),
+       N'Canon', N'iR-ADV C3325', N'CAN6001',
+       '2022-05-30', 2600.00, '2025-05-30', N'Available',
+       NULL, NULL,
+       (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 1')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Assets WHERE AssetCode = N'AST-0006');
+
+INSERT INTO dbo.Assets
+    (AssetCode, AssetName, Description, CategoryId, AssetTypeId, Manufacturer, Model, SerialNumber,
+     PurchaseDate, PurchaseCost, WarrantyExpiryDate, Status, DepartmentId, AssignedEmployeeId, LocationId)
+SELECT N'AST-0007', N'iPhone 15 Pro', N'Mobile for finance lead.',
+       (SELECT Id FROM dbo.Categories WHERE Name = N'Office Equipment'),
+       (SELECT Id FROM dbo.AssetTypes WHERE Name = N'Phone'),
+       N'Apple', N'iPhone 15 Pro', N'APL7001',
+       '2024-06-10', 950.00, '2026-06-10', N'Assigned',
+       (SELECT Id FROM dbo.Departments WHERE Name = N'Finance'),
+       (SELECT Id FROM dbo.Employees WHERE Name = N'Omar Khalil'),
+       (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 2')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Assets WHERE AssetCode = N'AST-0007');
+
+INSERT INTO dbo.Assets
+    (AssetCode, AssetName, Description, CategoryId, AssetTypeId, Manufacturer, Model, SerialNumber,
+     PurchaseDate, PurchaseCost, WarrantyExpiryDate, Status, DepartmentId, AssignedEmployeeId, LocationId)
+SELECT N'AST-0008', N'Dell PowerEdge R740', N'Retired rack server (decommissioned).',
+       (SELECT Id FROM dbo.Categories WHERE Name = N'Computers'),
+       (SELECT Id FROM dbo.AssetTypes WHERE Name = N'Server'),
+       N'Dell', N'PowerEdge R740', N'DLR8001',
+       '2019-02-11', 8900.00, '2022-02-11', N'Retired',
+       (SELECT Id FROM dbo.Departments WHERE Name = N'Operations'),
+       NULL,
+       (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 2')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Assets WHERE AssetCode = N'AST-0008');
+
+-- Note: this one has no serial number (software license). It's the only
+-- asset in this seed data with a NULL serial number, which is why the
+-- plain UNIQUE index on SerialNumber (see 001_schema.sql) still works here.
+INSERT INTO dbo.Assets
+    (AssetCode, AssetName, Description, CategoryId, AssetTypeId, Manufacturer, Model, SerialNumber,
+     PurchaseDate, PurchaseCost, WarrantyExpiryDate, Status, DepartmentId, AssignedEmployeeId, LocationId)
+SELECT N'AST-0009', N'Microsoft 365 Licenses', N'Annual subscription licences.',
+       (SELECT Id FROM dbo.Categories WHERE Name = N'Software'),
+       (SELECT Id FROM dbo.AssetTypes WHERE Name = N'Software License'),
+       N'Microsoft', N'M365 E3', NULL,
+       '2024-04-01', 120.00, '2025-04-01', N'Available',
+       NULL, NULL, NULL
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Assets WHERE AssetCode = N'AST-0009');
+
+INSERT INTO dbo.Assets
+    (AssetCode, AssetName, Description, CategoryId, AssetTypeId, Manufacturer, Model, SerialNumber,
+     PurchaseDate, PurchaseCost, WarrantyExpiryDate, Status, DepartmentId, AssignedEmployeeId, LocationId)
+SELECT N'AST-0010', N'HP ProBook 450 G9', N'Operations analyst laptop.',
+       (SELECT Id FROM dbo.Categories WHERE Name = N'Computers'),
+       (SELECT Id FROM dbo.AssetTypes WHERE Name = N'Laptop'),
+       N'HP', N'ProBook 450 G9', N'HP1002',
+       '2024-07-18', 980.00, '2026-07-18', N'Assigned',
+       (SELECT Id FROM dbo.Departments WHERE Name = N'Operations'),
+       (SELECT Id FROM dbo.Employees WHERE Name = N'Mostafa El-Sayed'),
+       (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 1')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Assets WHERE AssetCode = N'AST-0010');
+
+INSERT INTO dbo.Assets
+    (AssetCode, AssetName, Description, CategoryId, AssetTypeId, Manufacturer, Model, SerialNumber,
+     PurchaseDate, PurchaseCost, WarrantyExpiryDate, Status, DepartmentId, AssignedEmployeeId, LocationId)
+SELECT N'AST-0011', N'Dell XPS 13', N'Spare premium ultrabook.',
+       (SELECT Id FROM dbo.Categories WHERE Name = N'Computers'),
+       (SELECT Id FROM dbo.AssetTypes WHERE Name = N'Laptop'),
+       N'Dell', N'XPS 13', N'DLR2001',
+       '2024-09-01', 1490.00, '2027-09-01', N'Available',
+       NULL, NULL,
+       (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 1')
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Assets WHERE AssetCode = N'AST-0011');
+GO
+
+-- ----------------------------------------------------------------------------
+-- 5. Transfer history
+--    A transfer record shows what the assignment was BEFORE (From...) and
+--    AFTER (To...). Two sample transfers, so the "asset history" screen
+--    (R2.3 / R3.2) has something to show.
+-- ----------------------------------------------------------------------------
+
+-- Whoever the first seeded app user is, use them as "who performed the
+-- transfer" for this sample data (a plain scalar subquery — no CROSS APPLY).
+DECLARE @SeedUserId INT = (SELECT TOP 1 Id FROM dbo.AppUsers ORDER BY Id);
+
+IF @SeedUserId IS NOT NULL
+BEGIN
+    -- AST-0001 was moved from Mostafa/Operations to Ahmed/Presales.
+    INSERT INTO dbo.AssetTransfers
+        (AssetId, FromEmployeeId, ToEmployeeId, FromDepartmentId, ToDepartmentId,
+         FromLocationId, ToLocationId, TransferDateUtc, Reason, TransferredByUserId)
+    SELECT
+        (SELECT Id FROM dbo.Assets WHERE AssetCode = N'AST-0001'),
+        (SELECT Id FROM dbo.Employees WHERE Name = N'Mostafa El-Sayed'),
+        (SELECT Id FROM dbo.Employees WHERE Name = N'Ahmed Hassan'),
+        (SELECT Id FROM dbo.Departments WHERE Name = N'Operations'),
+        (SELECT Id FROM dbo.Departments WHERE Name = N'Presales'),
+        (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 1'),
+        (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 1'),
+        '2024-02-01T09:00:00', N'Reassigned to presales engineering.', @SeedUserId
+    WHERE NOT EXISTS (
+        SELECT 1 FROM dbo.AssetTransfers
+        WHERE AssetId = (SELECT Id FROM dbo.Assets WHERE AssetCode = N'AST-0001')
+          AND TransferDateUtc = '2024-02-01T09:00:00'
+    );
+
+    -- AST-0002 was newly assigned to Sara (no previous assignment).
+    INSERT INTO dbo.AssetTransfers
+        (AssetId, FromEmployeeId, ToEmployeeId, FromDepartmentId, ToDepartmentId,
+         FromLocationId, ToLocationId, TransferDateUtc, Reason, TransferredByUserId)
+    SELECT
+        (SELECT Id FROM dbo.Assets WHERE AssetCode = N'AST-0002'),
+        NULL,
+        (SELECT Id FROM dbo.Employees WHERE Name = N'Sara Mohamed'),
+        NULL,
+        (SELECT Id FROM dbo.Departments WHERE Name = N'Delivery'),
+        NULL,
+        (SELECT Id FROM dbo.Locations WHERE Name = N'Cairo HQ - Floor 2'),
+        '2024-03-05T09:00:00', N'New hire provisioning.', @SeedUserId
+    WHERE NOT EXISTS (
+        SELECT 1 FROM dbo.AssetTransfers
+        WHERE AssetId = (SELECT Id FROM dbo.Assets WHERE AssetCode = N'AST-0002')
+          AND TransferDateUtc = '2024-03-05T09:00:00'
+    );
+END
+GO
+
+PRINT N'002_seed.sql completed.';
+GO

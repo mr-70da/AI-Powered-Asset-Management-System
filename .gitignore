@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/requirements.txt
+/src/Kinana.Assets.Api/appsettings.Development.json
+/src/Kinana.Assets.Api/appsettings.json
