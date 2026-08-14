@@ -46,6 +46,7 @@ login, profile, and health flows.
 | `POST /api/assets/{id}/retire` | Admin | Retire an asset — soft delete (R2.5) |
 | `POST /api/assets/{id}/transfer` | Admin | Record a transfer — transaction + optimistic concurrency (R3.3, R3.4, R3.5) |
 | `GET /api/assets/{id}/transfers` | Any authenticated user | Full transfer history in chronological order (R3.2) |
+| `GET /api/lookups` | Any authenticated user | Reference data (categories, types, departments, locations, employees) — cached (R5.1) |
 | `GET /health` | Anonymous | Liveness check |
 
 Every other endpoint requires a valid token; a missing/invalid token returns `401`
@@ -106,3 +107,65 @@ transfer history and reserves *creating* transfers for Admins. The implementatio
 follows the matrix: `POST .../transfer` is Admin-only, `GET .../transfers` is open
 to any authenticated user. If history should be Admin-only instead, that is a
 one-line change on the endpoint.
+
+## Redis caching (R5)
+
+Reference data, asset details, and paginated asset lists are cached in Redis using
+a cache-aside strategy (read-through on miss, explicit invalidation on write).
+
+### Starting Redis (R5.5, R5.7)
+
+A `docker-compose.yml` at the repo root starts both SQL Server (1433) and Redis
+(6379). Start Redis with:
+
+```text
+docker compose up -d
+```
+
+Or Redis alone:
+
+```text
+docker compose up -d redis
+```
+
+The API connects to `localhost:6379` by default; override via the `CacheSettings`
+section in `appsettings.json` (ConnectionString, GlobalPrefix, TTLs).
+
+### What gets cached and how (R5.1, R5.2, R5.4)
+
+Cache-aside: on a cache miss the service reads from SQL Server and writes the
+serialized result to Redis with a TTL; on a hit the cached copy is returned
+without touching the database.
+
+| Cache | Key | TTL |
+|-------|-----|-----|
+| Reference data (lookups) | `KinanaAssets:Lookups:All` | 60 min |
+| Asset detail | `KinanaAssets:{Role}:Asset_{id}` | 15 min |
+| Asset list (page/filters/sort) | `KinanaAssets:{Role}:Assets_...` | 15 min |
+
+List keys encode the full query shape — page, page size, search text, and every
+filter, so distinct queries never collide. Role is derived from what the caller is
+authorized to see: `Admin` (includes purchase cost) or `User` (cost-free). The
+same query made by an Admin and a User therefore uses different keys and the
+User-facing list can never leak cost fields from the Admin cache (R5.4).
+
+### Invalidation strategy (R5.3)
+
+Every write path — create, update, retire, and transfer — evicts the affected
+entries by prefix after the transaction commits:
+
+- `KinanaAssets:*:Asset_{id}` — every detail entry for that asset, any role
+- `KinanaAssets:*:Assets_*` — every cached list, any role (the trailing `*` is
+  required because list keys encode the full query shape after the `Assets_` prefix)
+
+Lists are invalidated as a whole because a new or edited asset can change the
+result set of any filtered query; the next request rebuilds the page from SQL
+Server.
+
+### Graceful degradation (R5.6)
+
+Caching is best-effort. If Redis is unreachable (stopped container, bad
+connection string, network blip) the API keeps serving from SQL Server and
+reconnects automatically once Redis is back; no request fails because of the
+cache. Writes always go to SQL Server first, so the cache can never lose data —
+at worst it serves stale data for up to its TTL.

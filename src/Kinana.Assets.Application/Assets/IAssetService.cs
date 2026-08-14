@@ -1,7 +1,9 @@
+using Kinana.AssetManagement.Application.Caching;
 using Kinana.AssetManagement.Application.Common;
 using Kinana.AssetManagement.Application.Exceptions;
 using Kinana.AssetManagement.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Kinana.AssetManagement.Application.Assets;
 
@@ -26,15 +28,35 @@ public sealed class AssetService : IAssetService
 {
     private readonly IAssetRepository _repository;
     private readonly ICurrentUserService _currentUser;
+    private readonly ICacheService _cache;
+    private readonly CacheKeys _cacheKeys;
+    private readonly CacheSettings _cacheSettings;
 
-    public AssetService(IAssetRepository repository, ICurrentUserService currentUser)
+    public AssetService(
+        IAssetRepository repository,
+        ICurrentUserService currentUser,
+        ICacheService cache,
+        CacheKeys cacheKeys,
+        IOptions<CacheSettings> cacheSettings)
     {
         _repository = repository;
         _currentUser = currentUser;
+        _cache = cache;
+        _cacheKeys = cacheKeys;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<AssetListResponse> ListAsync(SearchAssetsQuery query, bool includeCost, CancellationToken ct)
     {
+        var role = includeCost ? "Admin" : "User";
+        var cacheKey = _cacheKeys.AssetList(role, query);
+
+        var cached = await _cache.GetAsync<AssetListResponse>(cacheKey, ct);
+        if (cached is not null)
+        {
+            return cached;
+        }
+
         var page = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, 100);
 
@@ -77,11 +99,24 @@ public sealed class AssetService : IAssetService
 
         var totalCount = await filtered.CountAsync(ct);
 
-        return new AssetListResponse(items, totalCount, page, pageSize);
+        var response = new AssetListResponse(items, totalCount, page, pageSize);
+
+        await _cache.SetAsync(cacheKey, response, _cacheSettings.AssetTtl, ct);
+
+        return response;
     }
 
     public async Task<AssetResponse> GetByIdAsync(int id, bool includeCost, CancellationToken ct)
     {
+        var role = includeCost ? "Admin" : "User";
+        var cacheKey = _cacheKeys.AssetDetail(id, role);
+
+        var cached = await _cache.GetAsync<AssetResponse>(cacheKey, ct);
+        if (cached is not null)
+        {
+            return cached;
+        }
+
         var asset = await _repository.Assets
             .AsNoTracking()
             .Include(a => a.Category)
@@ -108,7 +143,11 @@ public sealed class AssetService : IAssetService
             .SingleOrDefaultAsync(a => a.Id == id, ct)
             ?? throw new NotFoundException($"Asset {id} was not found.");
 
-        return ToResponse(asset, includeCost);
+        var response = ToResponse(asset, includeCost);
+
+        await _cache.SetAsync(cacheKey, response, _cacheSettings.AssetTtl, ct);
+
+        return response;
     }
 
     public async Task<AssetResponse> CreateAsync(CreateAssetRequest request, CancellationToken ct)
@@ -157,6 +196,8 @@ public sealed class AssetService : IAssetService
         };
 
         await _repository.AddAsync(asset, ct);
+
+        await InvalidateAssetCachesAsync(asset.Id, ct);
 
         return await GetByIdAsync(asset.Id, includeCost: true, ct);
     }
@@ -213,6 +254,8 @@ public sealed class AssetService : IAssetService
                 "This asset was modified by someone else since it was loaded. Refresh the asset and try again.");
         }
 
+        await InvalidateAssetCachesAsync(id, ct);
+
         return await GetByIdAsync(id, includeCost: true, ct);
     }
 
@@ -231,6 +274,8 @@ public sealed class AssetService : IAssetService
         asset.ModifiedAtUtc = DateTime.UtcNow;
 
         await _repository.SaveChangesAsync(ct);
+
+        await InvalidateAssetCachesAsync(id, ct);
     }
 
     public async Task TransferAsync(int id, TransferAssetRequest request, CancellationToken ct)
@@ -290,6 +335,8 @@ public sealed class AssetService : IAssetService
                     "This asset was modified by someone else since it was loaded. Refresh the asset and try again.");
             }
         }, ct);
+
+        await InvalidateAssetCachesAsync(id, ct);
     }
 
     public async Task<IReadOnlyList<AssetTransferResponse>> GetTransfersAsync(int id, CancellationToken ct)
@@ -323,6 +370,12 @@ public sealed class AssetService : IAssetService
                 t.ToLocation != null ? t.ToLocation.Name : null,
                 t.TransferredByUser.UserName))
             .ToListAsync(ct);
+    }
+
+    private async Task InvalidateAssetCachesAsync(int assetId, CancellationToken ct)
+    {
+        await _cache.RemoveByPrefixAsync(_cacheKeys.AssetDetailPattern(assetId), ct);
+        await _cache.RemoveByPrefixAsync(_cacheKeys.AssetListPattern(), ct);
     }
 
     private async Task ValidateReferencesAsync(

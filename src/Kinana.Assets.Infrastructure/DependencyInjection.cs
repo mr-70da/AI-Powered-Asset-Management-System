@@ -1,5 +1,7 @@
 using Kinana.AssetManagement.Application.Assets;
 using Kinana.AssetManagement.Application.Auth;
+using Kinana.AssetManagement.Application.Caching;
+using Kinana.AssetManagement.Infrastructure.Caching;
 using Kinana.AssetManagement.Infrastructure.Data;
 using Kinana.AssetManagement.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +23,10 @@ public static class DependencyInjection
         services.AddScoped<IAssetRepository, AssetRepository>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+
+        services.Configure<CacheSettings>(configuration.GetSection(CacheSettings.SectionName));
+        services.AddSingleton<CacheKeys>();
+        services.AddSingleton<ICacheService, RedisCacheService>();
 
         return services;
     }
