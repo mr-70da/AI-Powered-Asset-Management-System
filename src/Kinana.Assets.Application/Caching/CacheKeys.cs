@@ -25,7 +25,7 @@ public sealed class CacheKeys
         => $"{_globalPrefix}*:Asset_{assetId}";
 
     public string AssetListPattern()
-        => $"{_globalPrefix}*:Assets_";
+        => $"{_globalPrefix}*:Assets_*";
 
     private static string BuildAssetListKey(SearchAssetsQuery q)
     {

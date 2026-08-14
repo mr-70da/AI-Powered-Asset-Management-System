@@ -155,7 +155,8 @@ Every write path — create, update, retire, and transfer — evicts the affecte
 entries by prefix after the transaction commits:
 
 - `KinanaAssets:*:Asset_{id}` — every detail entry for that asset, any role
-- `KinanaAssets:*:Assets_` — every cached list, any role
+- `KinanaAssets:*:Assets_*` — every cached list, any role (the trailing `*` is
+  required because list keys encode the full query shape after the `Assets_` prefix)
 
 Lists are invalidated as a whole because a new or edited asset can change the
 result set of any filtered query; the next request rebuilds the page from SQL
