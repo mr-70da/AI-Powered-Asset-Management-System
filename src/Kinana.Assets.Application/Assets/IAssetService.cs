@@ -197,6 +197,8 @@ public sealed class AssetService : IAssetService
 
         await _repository.AddAsync(asset, ct);
 
+        await InvalidateAssetCachesAsync(asset.Id, ct);
+
         return await GetByIdAsync(asset.Id, includeCost: true, ct);
     }
 
@@ -252,6 +254,8 @@ public sealed class AssetService : IAssetService
                 "This asset was modified by someone else since it was loaded. Refresh the asset and try again.");
         }
 
+        await InvalidateAssetCachesAsync(id, ct);
+
         return await GetByIdAsync(id, includeCost: true, ct);
     }
 
@@ -270,6 +274,8 @@ public sealed class AssetService : IAssetService
         asset.ModifiedAtUtc = DateTime.UtcNow;
 
         await _repository.SaveChangesAsync(ct);
+
+        await InvalidateAssetCachesAsync(id, ct);
     }
 
     public async Task TransferAsync(int id, TransferAssetRequest request, CancellationToken ct)
@@ -329,6 +335,8 @@ public sealed class AssetService : IAssetService
                     "This asset was modified by someone else since it was loaded. Refresh the asset and try again.");
             }
         }, ct);
+
+        await InvalidateAssetCachesAsync(id, ct);
     }
 
     public async Task<IReadOnlyList<AssetTransferResponse>> GetTransfersAsync(int id, CancellationToken ct)
@@ -362,6 +370,12 @@ public sealed class AssetService : IAssetService
                 t.ToLocation != null ? t.ToLocation.Name : null,
                 t.TransferredByUser.UserName))
             .ToListAsync(ct);
+    }
+
+    private async Task InvalidateAssetCachesAsync(int assetId, CancellationToken ct)
+    {
+        await _cache.RemoveByPrefixAsync(_cacheKeys.AssetDetailPattern(assetId), ct);
+        await _cache.RemoveByPrefixAsync(_cacheKeys.AssetListPattern(), ct);
     }
 
     private async Task ValidateReferencesAsync(
