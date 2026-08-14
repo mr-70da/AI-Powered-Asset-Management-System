@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Kinana.AssetManagement.Infrastructure.Data;
+namespace Kinana.AssetManagement.Domain.Entities;
 
 public partial class Organisation
 {

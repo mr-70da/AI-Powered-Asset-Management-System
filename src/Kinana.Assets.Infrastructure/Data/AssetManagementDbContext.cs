@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Kinana.AssetManagement.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kinana.AssetManagement.Infrastructure.Data;
