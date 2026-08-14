@@ -24,11 +24,16 @@ public sealed class AssetRepository : IAssetRepository
 
     public IQueryable<Location> Locations => _context.Locations;
 
+    public IQueryable<AssetTransfer> AssetTransfers => _context.AssetTransfers;
+
     public async Task AddAsync(Asset asset, CancellationToken ct)
     {
         _context.Assets.Add(asset);
         await _context.SaveChangesAsync(ct);
     }
+
+    public void AddTransfer(AssetTransfer transfer)
+        => _context.AssetTransfers.Add(transfer);
 
     public async Task<int> SaveChangesAsync(CancellationToken ct)
         => await _context.SaveChangesAsync(ct);

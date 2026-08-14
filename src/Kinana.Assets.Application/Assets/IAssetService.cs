@@ -16,6 +16,10 @@ public interface IAssetService
     Task<AssetResponse> UpdateAsync(int id, UpdateAssetRequest request, CancellationToken ct);
 
     Task RetireAsync(int id, CancellationToken ct);
+
+    Task TransferAsync(int id, TransferAssetRequest request, CancellationToken ct);
+
+    Task<IReadOnlyList<AssetTransferResponse>> GetTransfersAsync(int id, CancellationToken ct);
 }
 
 public sealed class AssetService : IAssetService
@@ -220,6 +224,82 @@ public sealed class AssetService : IAssetService
         await _repository.SaveChangesAsync(ct);
     }
 
+    public async Task TransferAsync(int id, TransferAssetRequest request, CancellationToken ct)
+    {
+        var asset = await _repository.Assets.FirstOrDefaultAsync(a => a.Id == id, ct)
+            ?? throw new NotFoundException($"Asset {id} was not found.");
+
+        if (asset.Status == "Retired")
+        {
+            throw new ValidationException($"Asset {id} is retired and cannot be transferred.");
+        }
+
+        if (asset.DepartmentId == request.ToDepartmentId
+            && asset.AssignedEmployeeId == request.ToEmployeeId
+            && asset.LocationId == request.ToLocationId)
+        {
+            throw new ValidationException("A transfer must change the department, employee, or location.");
+        }
+
+        await ValidateTransferReferencesAsync(request, ct);
+
+        _repository.AddTransfer(new AssetTransfer
+        {
+            AssetId = asset.Id,
+            FromDepartmentId = asset.DepartmentId,
+            ToDepartmentId = request.ToDepartmentId,
+            FromEmployeeId = asset.AssignedEmployeeId,
+            ToEmployeeId = request.ToEmployeeId,
+            FromLocationId = asset.LocationId,
+            ToLocationId = request.ToLocationId,
+            TransferDateUtc = request.TransferDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
+            Reason = request.Reason,
+            TransferredByUserId = _currentUser.UserId,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+
+        asset.DepartmentId = request.ToDepartmentId;
+        asset.AssignedEmployeeId = request.ToEmployeeId;
+        asset.LocationId = request.ToLocationId;
+        asset.ModifiedByUserId = _currentUser.UserId;
+        asset.ModifiedAtUtc = DateTime.UtcNow;
+
+        await _repository.SaveChangesAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<AssetTransferResponse>> GetTransfersAsync(int id, CancellationToken ct)
+    {
+        if (!await _repository.Assets.AnyAsync(a => a.Id == id, ct))
+        {
+            throw new NotFoundException($"Asset {id} was not found.");
+        }
+
+        return await _repository.AssetTransfers
+            .AsNoTracking()
+            .Include(t => t.FromEmployee)
+            .Include(t => t.ToEmployee)
+            .Include(t => t.FromDepartment)
+            .Include(t => t.ToDepartment)
+            .Include(t => t.FromLocation)
+            .Include(t => t.ToLocation)
+            .Include(t => t.TransferredByUser)
+            .Where(t => t.AssetId == id)
+            .OrderBy(t => t.TransferDateUtc)
+            .ThenBy(t => t.Id)
+            .Select(t => new AssetTransferResponse(
+                t.Id,
+                t.TransferDateUtc,
+                t.Reason,
+                t.FromEmployee != null ? t.FromEmployee.Name : null,
+                t.ToEmployee != null ? t.ToEmployee.Name : null,
+                t.FromDepartment != null ? t.FromDepartment.Name : null,
+                t.ToDepartment != null ? t.ToDepartment.Name : null,
+                t.FromLocation != null ? t.FromLocation.Name : null,
+                t.ToLocation != null ? t.ToLocation.Name : null,
+                t.TransferredByUser.UserName))
+            .ToListAsync(ct);
+    }
+
     private async Task ValidateReferencesAsync(
         int categoryId,
         int assetTypeId,
@@ -251,6 +331,27 @@ public sealed class AssetService : IAssetService
         if (locationId.HasValue && !await _repository.Locations.AnyAsync(l => l.Id == locationId.Value, ct))
         {
             throw new ValidationException($"Location {locationId} does not exist.");
+        }
+    }
+
+    private async Task ValidateTransferReferencesAsync(TransferAssetRequest request, CancellationToken ct)
+    {
+        if (request.ToDepartmentId.HasValue
+            && !await _repository.Departments.AnyAsync(d => d.Id == request.ToDepartmentId.Value, ct))
+        {
+            throw new ValidationException($"Department {request.ToDepartmentId} does not exist.");
+        }
+
+        if (request.ToEmployeeId.HasValue
+            && !await _repository.Employees.AnyAsync(e => e.Id == request.ToEmployeeId.Value, ct))
+        {
+            throw new ValidationException($"Employee {request.ToEmployeeId} does not exist.");
+        }
+
+        if (request.ToLocationId.HasValue
+            && !await _repository.Locations.AnyAsync(l => l.Id == request.ToLocationId.Value, ct))
+        {
+            throw new ValidationException($"Location {request.ToLocationId} does not exist.");
         }
     }
 

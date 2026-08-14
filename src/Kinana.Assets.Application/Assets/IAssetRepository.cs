@@ -16,7 +16,11 @@ public interface IAssetRepository
 
     IQueryable<Location> Locations { get; }
 
+    IQueryable<AssetTransfer> AssetTransfers { get; }
+
     Task AddAsync(Asset asset, CancellationToken ct);
+
+    void AddTransfer(AssetTransfer transfer);
 
     Task<int> SaveChangesAsync(CancellationToken ct);
 }
