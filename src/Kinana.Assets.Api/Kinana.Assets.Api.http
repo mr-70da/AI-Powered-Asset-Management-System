@@ -1,5 +1,6 @@
-@KinanaAssetManagement_HostAddress = http://localhost:5096
+@KinanaAssetManagement_HostAddress = http://localhost:5258
 @AccessToken = <paste JWT from /api/auth/login>
+@AssetId = 1
 
 ### Health (no auth)
 GET {{KinanaAssetManagement_HostAddress}}/health
@@ -25,4 +26,23 @@ Content-Type: application/json
 
 ### Current profile
 GET {{KinanaAssetManagement_HostAddress}}/api/auth/me
+Authorization: Bearer {{AccessToken}}
+
+### Transfer an asset (R3.1, R3.3, R3.5) - Admin only
+# RowVersion comes from GET /api/assets/{id}. Send back the value you received.
+POST {{KinanaAssetManagement_HostAddress}}/api/assets/{{AssetId}}/transfer
+Authorization: Bearer {{AccessToken}}
+Content-Type: application/json
+
+{
+  "toDepartmentId": 2,
+  "toEmployeeId": 3,
+  "toLocationId": 2,
+  "transferDate": "2026-08-14",
+  "reason": "Reassigned to the Finance team.",
+  "rowVersion": "<paste RowVersion from GET /api/assets/{id}>"
+}
+
+### Transfer history (R3.2)
+GET {{KinanaAssetManagement_HostAddress}}/api/assets/{{AssetId}}/transfers
 Authorization: Bearer {{AccessToken}}
