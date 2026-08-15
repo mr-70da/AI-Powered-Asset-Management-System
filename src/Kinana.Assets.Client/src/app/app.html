@@ -1,0 +1,27 @@
+<header class="app-header">
+  <a class="brand" routerLink="/">
+    <span class="brand-mark">K</span>
+    <span class="brand-name">KINANA Assets</span>
+  </a>
+
+  <nav class="app-nav">
+    <a routerLink="/assets" routerLinkActive="active">Assets</a>
+    <a routerLink="/assets/new" routerLinkActive="active" *appAdminOnly>New asset</a>
+  </nav>
+
+  <div class="spacer"></div>
+
+  @if (user(); as currentUser) {
+    <div class="user-info">
+      <span class="user-name">{{ currentUser.displayName }}</span>
+      <span class="role-badge" [class.admin]="currentUser.role === 'Admin'">
+        {{ currentUser.role }}
+      </span>
+    </div>
+    <button type="button" class="btn btn-ghost" (click)="logout()">Sign out</button>
+  }
+</header>
+
+<main class="app-main">
+  <router-outlet />
+</main>
