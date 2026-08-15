@@ -29,6 +29,11 @@ export const routes: Routes = [
           import('./features/assets/asset-list/asset-list.component').then((m) => m.AssetListComponent)
       },
       {
+        path: 'ai-assistant',
+        loadComponent: () =>
+          import('./features/ai-assistant/ai-assistant.component').then((m) => m.AiAssistantComponent)
+      },
+      {
         // Admin-only features are lazy-loaded and gated with canMatch so a
         // standard User never downloads these bundles (R6.2).
         path: 'assets/new',

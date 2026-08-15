@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Kinana.AssetManagement.Application.Assets;
 using Microsoft.Extensions.Options;
 
@@ -21,11 +23,29 @@ public sealed class CacheKeys
     public string Lookups()
         => $"{_globalPrefix}Lookups:All";
 
+    /// <summary>
+    /// AI answers are keyed by normalized question plus role, so a User never
+    /// reads an Admin-cached answer (R5.4) and equivalent questions share one
+    /// entry (R5.8). The hash keeps the key compact and free of user text.
+    /// </summary>
+    public string AiAnswer(string role, string question)
+    {
+        var normalized = Normalize(question);
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))[..16].ToLowerInvariant();
+        return $"{_globalPrefix}{role}:Ai:{hash}";
+    }
+
     public string AssetDetailPattern(int assetId)
         => $"{_globalPrefix}*:Asset_{assetId}";
 
     public string AssetListPattern()
         => $"{_globalPrefix}*:Assets_*";
+
+    public string AiAnswerPattern()
+        => $"{_globalPrefix}*:Ai:*";
+
+    private static string Normalize(string value)
+        => string.Join(' ', value.Split(' ', StringSplitOptions.RemoveEmptyEntries)).ToLowerInvariant();
 
     private static string BuildAssetListKey(SearchAssetsQuery q)
     {

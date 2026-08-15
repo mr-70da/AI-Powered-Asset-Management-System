@@ -46,3 +46,43 @@ Content-Type: application/json
 ### Transfer history (R3.2)
 GET {{KinanaAssetManagement_HostAddress}}/api/assets/{{AssetId}}/transfers
 Authorization: Bearer {{AccessToken}}
+
+### AI assistant - ask a question (R4)
+# Uses Ai:Provider ("stub" by default; switch to "openai" with a key to use
+# the real model). The answer is grounded in the asset database (R4.4).
+POST {{KinanaAssetManagement_HostAddress}}/api/ai/ask
+Authorization: Bearer {{AccessToken}}
+Content-Type: application/json
+
+{
+  "question": "Show me all laptops currently assigned to the Presales department."
+}
+
+### AI assistant - count question (R4)
+POST {{KinanaAssetManagement_HostAddress}}/api/ai/ask
+Authorization: Bearer {{AccessToken}}
+Content-Type: application/json
+
+{
+  "question": "How many Dell laptops do we have?"
+}
+
+### AI assistant - value question (R4.3)
+# As the seeded "user" account this returns the Admin-only refusal message,
+# never a cost figure. Log in as "admin" to get the total instead.
+POST {{KinanaAssetManagement_HostAddress}}/api/ai/ask
+Authorization: Bearer {{AccessToken}}
+Content-Type: application/json
+
+{
+  "question": "What is the total purchase cost of the Dell laptops?"
+}
+
+### AI assistant - out-of-scope question (R4.5)
+POST {{KinanaAssetManagement_HostAddress}}/api/ai/ask
+Authorization: Bearer {{AccessToken}}
+Content-Type: application/json
+
+{
+  "question": "Tell me a joke."
+}
