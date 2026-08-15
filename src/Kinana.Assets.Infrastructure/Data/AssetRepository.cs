@@ -3,7 +3,7 @@ using Kinana.AssetManagement.Domain.Entities;
 
 namespace Kinana.AssetManagement.Infrastructure.Data;
 
-public sealed class AssetRepository : IAssetRepository
+public sealed class AssetRepository : IAssetRepository, IAssetReadRepository
 {
     private readonly AssetManagementDbContext _context;
 

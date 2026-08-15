@@ -60,41 +60,13 @@ public sealed class AssetService : IAssetService
         var page = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, 100);
 
-        var filtered = ApplyFilters(_repository.Assets.AsNoTracking(), query);
+        var filtered = AssetQueries.ApplyFilters(_repository.Assets.AsNoTracking(), query);
 
-        var items = await ApplySort(filtered, query.SortBy, query.SortDirection)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(a => new AssetResponse(
-                a.Id,
-                a.AssetCode,
-                a.AssetName,
-                a.Description,
-                a.CategoryId,
-                a.Category.Name,
-                a.AssetTypeId,
-                a.AssetType.Name,
-                a.Manufacturer,
-                a.Model,
-                a.SerialNumber,
-                a.PurchaseDate,
-                includeCost ? a.PurchaseCost : null,
-                a.WarrantyExpiryDate,
-                a.Status,
-                a.DepartmentId,
-                a.Department != null ? a.Department.Name : null,
-                a.AssignedEmployeeId,
-                a.AssignedEmployee != null ? a.AssignedEmployee.Name : null,
-                a.LocationId,
-                a.Location != null ? a.Location.Name : null,
-                a.CreatedByUserId,
-                a.CreatedByUser != null ? a.CreatedByUser.UserName : null,
-                a.CreatedAtUtc,
-                a.ModifiedByUserId,
-                a.ModifiedByUser != null ? a.ModifiedByUser.UserName : null,
-                a.ModifiedAtUtc,
-                a.RowVersion,
-                Array.Empty<AssetTransferResponse>()))
+        var items = await AssetQueries.Project(
+                ApplySort(filtered, query.SortBy, query.SortDirection)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize),
+                includeCost)
             .ToListAsync(ct);
 
         var totalCount = await filtered.CountAsync(ct);
@@ -376,6 +348,7 @@ public sealed class AssetService : IAssetService
     {
         await _cache.RemoveByPrefixAsync(_cacheKeys.AssetDetailPattern(assetId), ct);
         await _cache.RemoveByPrefixAsync(_cacheKeys.AssetListPattern(), ct);
+        await _cache.RemoveByPrefixAsync(_cacheKeys.AiAnswerPattern(), ct);
     }
 
     private async Task ValidateReferencesAsync(
@@ -431,50 +404,6 @@ public sealed class AssetService : IAssetService
         {
             throw new ValidationException($"Location {request.ToLocationId} does not exist.");
         }
-    }
-
-    private static IQueryable<Asset> ApplyFilters(IQueryable<Asset> query, SearchAssetsQuery q)
-    {
-        if (!string.IsNullOrWhiteSpace(q.Search))
-        {
-            var term = q.Search.Trim();
-            query = query.Where(a =>
-                a.AssetCode.Contains(term)
-                || a.AssetName.Contains(term)
-                || (a.SerialNumber != null && a.SerialNumber.Contains(term)));
-        }
-
-        if (q.CategoryId.HasValue)
-        {
-            query = query.Where(a => a.CategoryId == q.CategoryId.Value);
-        }
-
-        if (q.AssetTypeId.HasValue)
-        {
-            query = query.Where(a => a.AssetTypeId == q.AssetTypeId.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(q.Status))
-        {
-            query = query.Where(a => a.Status == q.Status);
-        }
-
-        if (q.DepartmentId.HasValue)
-        {
-            query = query.Where(a => a.DepartmentId == q.DepartmentId.Value);
-        }
-
-        if (q.LocationId.HasValue)
-        {
-            query = query.Where(a => a.LocationId == q.LocationId.Value);
-        }
-
-        if (q.AssignedEmployeeId.HasValue)
-        {
-            query = query.Where(a => a.AssignedEmployeeId == q.AssignedEmployeeId.Value);
-        }
-
-        return query;
     }
 
     private static IOrderedQueryable<Asset> ApplySort(IQueryable<Asset> query, string? sortBy, string? sortDirection)

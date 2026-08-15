@@ -12,7 +12,11 @@ public sealed class CacheSettings
 
     public int AssetTtlMinutes { get; set; } = 15;
 
+    public int AiAnswerTtlMinutes { get; set; } = 10;
+
     public TimeSpan LookupTtl => TimeSpan.FromMinutes(LookupTtlMinutes);
 
     public TimeSpan AssetTtl => TimeSpan.FromMinutes(AssetTtlMinutes);
+
+    public TimeSpan AiAnswerTtl => TimeSpan.FromMinutes(AiAnswerTtlMinutes);
 }
