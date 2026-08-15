@@ -1,0 +1,14 @@
+.not-permitted {
+  max-width: 30rem;
+  margin: 3rem auto;
+  text-align: center;
+
+  .lock {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .row {
+    justify-content: center;
+  }
+}

@@ -1,0 +1,22 @@
+@if (user(); as currentUser) {
+  <div class="card">
+    <h1>Welcome, {{ currentUser.displayName }}</h1>
+    <p>
+      You are signed in as <strong>{{ currentUser.userName }}</strong> with the
+      <span class="role-badge" [class.admin]="currentUser.role === 'Admin'">{{ currentUser.role }}</span>
+      role.
+    </p>
+  </div>
+
+  <div class="quick-links">
+    <a class="card quick-link" routerLink="/assets">
+      <h2>Asset register</h2>
+      <p>Browse, search, filter and page through all assets.</p>
+    </a>
+
+    <a class="card quick-link" routerLink="/assets" *appAdminOnly>
+      <h2>Manage assets</h2>
+      <p>Create, edit, retire and transfer assets.</p>
+    </a>
+  </div>
+}

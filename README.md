@@ -1,8 +1,11 @@
 # AI-Powered Asset Management System
 
-Backend for the KINANA asset management assessment: a layered ASP.NET Core Web API
+The KINANA asset management assessment: a layered ASP.NET Core Web API
 (API / Application / Domain / Infrastructure) backed by SQL Server, with JWT
-authentication and role-based authorization (R1) and asset management (R2).
+authentication and role-based authorization (R1), asset management (R2),
+transactional transfers with optimistic concurrency (R3), and Redis caching
+(R5) — plus an Angular client (`src/Kinana.Assets.Client`) that covers login,
+the asset register, detail/history, create/edit, and transfer (R6).
 
 ## Credentials (R1.5)
 
@@ -31,6 +34,86 @@ enforced server-side with `[Authorize]`, never from a client-supplied field (R1.
 
 A ready-made `.http` request collection (`Kinana.Assets.Api.http`) demonstrates
 login, profile, and health flows.
+
+## Angular client (R6)
+
+The client lives in `src/Kinana.Assets.Client` — a standalone-component Angular
+app (v21) using the modern router, typed services, and reactive forms. The CORS
+policy on the API allows only `http://localhost:4200`.
+
+### Running it
+
+```text
+cd src/Kinana.Assets.Client
+npm install
+npm start            # dev server on http://localhost:4200, proxies /api to the API
+```
+
+The API base URL is configured in `src/environments/environment.ts`
+(`http://localhost:5258` in development; a production build swaps the file via
+`fileReplacements`). Start the API first (see "Running the API"), then sign in
+with the seeded `admin` / `user` accounts.
+
+### Request path
+
+Components never touch `HttpClient` — they inject typed services (`AuthService`,
+`AssetService`, `LookupService`) whose methods return strongly typed
+observables mirroring the C# DTOs (R6.7). A single HTTP interceptor
+(`auth.interceptor.ts`) attaches `Authorization: Bearer <token>` to every
+outgoing request, silently refreshes the token pair once on a 401 and retries
+the call, and routes 403 responses to a dedicated "Not Permitted" page (R6.3).
+
+### Routing & guards
+
+- `authGuard` (canActivate) protects the whole authenticated area. A visitor
+  without a token is sent to `/login?returnUrl=...` and returned there after
+  signing in (R6.1).
+- `adminGuard` (canMatch) gates the lazy-loaded Create/Edit/Transfer feature
+  chunks, so a standard `User` never even downloads those bundles (R6.2).
+- `unsavedChangesGuard` (canDeactivate) runs on the Create/Edit/Transfer forms
+  and asks for confirmation before leaving with a dirty form (R6.4).
+
+### Token storage rationale (R6.8)
+
+I stored the JWT pair in `localStorage` (via `TokenStorageService`).
+
+- **What it exposes me to:** `localStorage` is readable by any script running on
+  the origin, so a successful XSS injection could steal the tokens. This is the
+  classic trade-off of persistent token storage.
+- **Why I chose it:** it survives tab closes and full page reloads, so the user
+  signs in once per browser session. The alternative — in-memory storage — is
+  safer against XSS but loses the session on every refresh, forcing the
+  refresh/redirect dance to be the primary login path and complicating the
+  guards.
+- **How I mitigated the XSS risk:** Angular's template bindings escape output by
+  default (no `innerHTML`, no `bypassSecurityTrust*` anywhere); no third-party
+  script loads on the page; and `localStorage` is the only storage surface —
+  the refresh token is never sent to any origin other than our API. Crucially,
+  the tokens are **only credentials for the API**, which is itself the
+  authorization boundary (see the security note below); stealing a token cannot
+  change what a `User` is allowed to do.
+- **Bonus resilience:** a 401 triggers one single-flight refresh (concurrent
+  401s share one refresh request); if the refresh token has also expired the
+  interceptor signs the user out and redirects to `/login`.
+
+### UI security boundary (R6.5)
+
+> **The `*appAdminOnly` directive is strictly for UX purposes to prevent visual
+> clutter. Actual authorization is enforced server-side via the API.**
+
+Edit/Transfer/Retire buttons and the Create-asset flows are hidden for `User`
+role with a single `*appAdminOnly` structural directive instead of scattered
+`*ngIf`s. The API independently rejects any non-Admin call with a 403 — the
+directive only controls what is *rendered*, never what is *allowed*.
+
+### Forms, validation and states (R6.6)
+
+Create/Edit/Transfer use `FormBuilder` reactive forms with client-side
+validators that mirror the server rules. On a `400 Bad Request`, the interceptor
+path passes the `ProblemDetails` payload to the component, which maps each
+`errors[property]` entry onto the matching form control and surfaces
+non-field messages in an alert. Every data-fetching view has a loading spinner,
+an explicit "No assets found" empty state, and a readable error state.
 
 ## Endpoints implemented so far
 

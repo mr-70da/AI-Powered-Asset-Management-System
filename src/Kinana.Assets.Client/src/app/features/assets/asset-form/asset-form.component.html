@@ -1,0 +1,196 @@
+<div class="page-header">
+  <h1>{{ isEdit ? 'Edit asset' : 'New asset' }}</h1>
+  <a class="btn btn-secondary" routerLink="/assets">Cancel</a>
+</div>
+
+@if (loading()) {
+  <div class="card loading-state">
+    <div class="spinner spinner-lg"></div>
+    <span>Loading asset…</span>
+  </div>
+} @else {
+  <form class="card" [formGroup]="form" (ngSubmit)="onSubmit()">
+    @if (errorMessage()) {
+      <div class="alert alert-error" role="alert">{{ errorMessage() }}</div>
+    }
+    @for (message of generalErrors(); track message) {
+      <div class="alert alert-error" role="alert">{{ message }}</div>
+    }
+
+    <div class="form-grid">
+      <div class="field" [class.invalid]="form.controls.assetCode.invalid && form.controls.assetCode.touched">
+        <label for="assetCode">Asset code *</label>
+        <input id="assetCode" type="text" formControlName="assetCode" placeholder="AST-0001" />
+        @if (form.controls.assetCode.touched && form.controls.assetCode.hasError('required')) {
+          <div class="error">Asset code is required.</div>
+        }
+        @if (form.controls.assetCode.touched && form.controls.assetCode.hasError('maxlength')) {
+          <div class="error">Asset code must be 50 characters or fewer.</div>
+        }
+        @if (form.controls.assetCode.touched && form.controls.assetCode.hasError('server')) {
+          <div class="error">{{ serverError('assetCode') }}</div>
+        }
+      </div>
+
+      <div class="field" [class.invalid]="form.controls.assetName.invalid && form.controls.assetName.touched">
+        <label for="assetName">Asset name *</label>
+        <input id="assetName" type="text" formControlName="assetName" placeholder="Dell Latitude 5420" />
+        @if (form.controls.assetName.touched && form.controls.assetName.hasError('required')) {
+          <div class="error">Asset name is required.</div>
+        }
+        @if (form.controls.assetName.touched && form.controls.assetName.hasError('maxlength')) {
+          <div class="error">Asset name must be 150 characters or fewer.</div>
+        }
+        @if (form.controls.assetName.touched && form.controls.assetName.hasError('server')) {
+          <div class="error">{{ serverError('assetName') }}</div>
+        }
+      </div>
+
+      <div class="field" [class.invalid]="form.controls.categoryId.invalid && form.controls.categoryId.touched">
+        <label for="categoryId">Category *</label>
+        <select id="categoryId" formControlName="categoryId">
+          <option [ngValue]="0">Select a category…</option>
+          @for (category of lookups().categories; track category.id) {
+            <option [ngValue]="category.id">{{ category.name }}</option>
+          }
+        </select>
+        @if (form.controls.categoryId.touched && form.controls.categoryId.hasError('required')) {
+          <div class="error">Category is required.</div>
+        }
+        @if (form.controls.categoryId.touched && form.controls.categoryId.hasError('server')) {
+          <div class="error">{{ serverError('categoryId') }}</div>
+        }
+      </div>
+
+      <div class="field" [class.invalid]="form.controls.assetTypeId.invalid && form.controls.assetTypeId.touched">
+        <label for="assetTypeId">Type *</label>
+        <select id="assetTypeId" formControlName="assetTypeId">
+          <option [ngValue]="0">Select a type…</option>
+          @for (type of lookups().assetTypes; track type.id) {
+            <option [ngValue]="type.id">{{ type.name }}</option>
+          }
+        </select>
+        @if (form.controls.assetTypeId.touched && form.controls.assetTypeId.hasError('required')) {
+          <div class="error">Type is required.</div>
+        }
+        @if (form.controls.assetTypeId.touched && form.controls.assetTypeId.hasError('server')) {
+          <div class="error">{{ serverError('assetTypeId') }}</div>
+        }
+      </div>
+
+      <div class="field" [class.invalid]="form.controls.manufacturer.invalid && form.controls.manufacturer.touched">
+        <label for="manufacturer">Manufacturer</label>
+        <input id="manufacturer" type="text" formControlName="manufacturer" />
+        @if (form.controls.manufacturer.touched && form.controls.manufacturer.hasError('server')) {
+          <div class="error">{{ serverError('manufacturer') }}</div>
+        }
+      </div>
+
+      <div class="field" [class.invalid]="form.controls.model.invalid && form.controls.model.touched">
+        <label for="model">Model</label>
+        <input id="model" type="text" formControlName="model" />
+        @if (form.controls.model.touched && form.controls.model.hasError('server')) {
+          <div class="error">{{ serverError('model') }}</div>
+        }
+      </div>
+
+      <div class="field" [class.invalid]="form.controls.serialNumber.invalid && form.controls.serialNumber.touched">
+        <label for="serialNumber">Serial number</label>
+        <input id="serialNumber" type="text" formControlName="serialNumber" />
+        @if (form.controls.serialNumber.touched && form.controls.serialNumber.hasError('server')) {
+          <div class="error">{{ serverError('serialNumber') }}</div>
+        }
+      </div>
+
+      <div class="field" [class.invalid]="form.controls.status.invalid && form.controls.status.touched">
+        <label for="status">Status *</label>
+        <select id="status" formControlName="status">
+          @for (status of statuses; track status) {
+            <option [ngValue]="status">{{ status }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="purchaseDate">Purchase date</label>
+        <input id="purchaseDate" type="date" formControlName="purchaseDate" />
+      </div>
+
+      <div class="field" [class.invalid]="form.controls.purchaseCost.invalid && form.controls.purchaseCost.touched">
+        <label for="purchaseCost">Purchase cost</label>
+        <input
+          id="purchaseCost"
+          type="number"
+          min="0"
+          step="0.01"
+          formControlName="purchaseCost"
+        />
+        @if (form.controls.purchaseCost.touched && form.controls.purchaseCost.hasError('min')) {
+          <div class="error">Purchase cost cannot be negative.</div>
+        }
+        @if (form.controls.purchaseCost.touched && form.controls.purchaseCost.hasError('server')) {
+          <div class="error">{{ serverError('purchaseCost') }}</div>
+        }
+      </div>
+
+      <div class="field">
+        <label for="warrantyExpiryDate">Warranty expiry</label>
+        <input id="warrantyExpiryDate" type="date" formControlName="warrantyExpiryDate" />
+      </div>
+
+      <div class="field">
+        <label for="departmentId">Department</label>
+        <select id="departmentId" formControlName="departmentId">
+          <option [ngValue]="null">Unassigned</option>
+          @for (department of lookups().departments; track department.id) {
+            <option [ngValue]="department.id">{{ department.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="assignedEmployeeId">Assigned employee</label>
+        <select id="assignedEmployeeId" formControlName="assignedEmployeeId">
+          <option [ngValue]="null">Unassigned</option>
+          @for (employee of lookups().employees; track employee.id) {
+            <option [ngValue]="employee.id">{{ employee.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="locationId">Location</label>
+        <select id="locationId" formControlName="locationId">
+          <option [ngValue]="null">Unassigned</option>
+          @for (location of lookups().locations; track location.id) {
+            <option [ngValue]="location.id">{{ location.name }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="field" [class.invalid]="form.controls.description.invalid && form.controls.description.touched">
+      <label for="description">Description</label>
+      <textarea
+        id="description"
+        rows="3"
+        formControlName="description"
+        placeholder="Optional notes about this asset"
+      ></textarea>
+      @if (form.controls.description.touched && form.controls.description.hasError('server')) {
+        <div class="error">{{ serverError('description') }}</div>
+      }
+    </div>
+
+    <div class="row">
+      <button class="btn" type="submit" [disabled]="submitting()">
+        @if (submitting()) {
+          <span class="spinner spinner-sm"></span> Saving…
+        } @else {
+          {{ isEdit ? 'Save changes' : 'Create asset' }}
+        }
+      </button>
+      <a class="btn btn-secondary" routerLink="/assets">Cancel</a>
+    </div>
+  </form>
+}

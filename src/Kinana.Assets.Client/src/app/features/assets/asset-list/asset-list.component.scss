@@ -1,0 +1,44 @@
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0 1rem;
+}
+
+.filters .field {
+  margin-bottom: 0.25rem;
+}
+
+.table-card {
+  padding: 0;
+  overflow-x: auto;
+
+  table.table {
+    margin: 0;
+
+    th:first-child,
+    td:first-child {
+      padding-left: 1.25rem;
+    }
+  }
+
+  .pagination {
+    justify-content: flex-end;
+    padding: 1rem 1.25rem 0.25rem;
+
+    .page-size {
+      margin-left: 0.5rem;
+      padding: 0.3rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-family: inherit;
+      font-size: 0.875rem;
+    }
+  }
+
+  .result-count {
+    padding: 0 1.25rem 1rem;
+    margin: 0;
+    font-size: 0.8125rem;
+  }
+}
