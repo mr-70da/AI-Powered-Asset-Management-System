@@ -1,0 +1,108 @@
+<div class="page-header">
+  <h1>Transfer asset</h1>
+  @if (asset(); as headerAsset) {
+    <a class="btn btn-secondary" routerLink="/assets/{{ headerAsset.id }}">Cancel</a>
+  }
+</div>
+
+@if (loading()) {
+  <div class="card loading-state">
+    <div class="spinner spinner-lg"></div>
+    <span>Loading asset…</span>
+  </div>
+} @else if (asset(); as asset) {
+  @if (asset.status === 'Retired') {
+    <div class="alert alert-info">A retired asset cannot be transferred.</div>
+  }
+
+  <form class="card transfer-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+    @if (errorMessage()) {
+      <div class="alert alert-error" role="alert">{{ errorMessage() }}</div>
+    }
+    @for (message of generalErrors(); track message) {
+      <div class="alert alert-error" role="alert">{{ message }}</div>
+    }
+
+    <p>
+      Transferring <strong>{{ asset.assetName }}</strong> ({{ asset.assetCode }}).
+      Current assignment: {{ asset.assignedEmployeeName ?? 'no employee' }} ·
+      {{ asset.departmentName ?? 'no department' }} · {{ asset.locationName ?? 'no location' }}.
+    </p>
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="toEmployeeId">Assign to employee</label>
+        <select id="toEmployeeId" formControlName="toEmployeeId">
+          <option [ngValue]="null">Unassigned</option>
+          @for (employee of lookups().employees; track employee.id) {
+            <option [ngValue]="employee.id">{{ employee.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="toDepartmentId">Assign to department</label>
+        <select id="toDepartmentId" formControlName="toDepartmentId">
+          <option [ngValue]="null">Unassigned</option>
+          @for (department of lookups().departments; track department.id) {
+            <option [ngValue]="department.id">{{ department.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="toLocationId">Assign to location</label>
+        <select id="toLocationId" formControlName="toLocationId">
+          <option [ngValue]="null">Unassigned</option>
+          @for (location of lookups().locations; track location.id) {
+            <option [ngValue]="location.id">{{ location.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field" [class.invalid]="form.controls.transferDate.invalid && form.controls.transferDate.touched">
+        <label for="transferDate">Transfer date *</label>
+        <input id="transferDate" type="date" formControlName="transferDate" />
+        @if (form.controls.transferDate.touched && form.controls.transferDate.hasError('required')) {
+          <div class="error">Transfer date is required.</div>
+        }
+        @if (form.controls.transferDate.touched && form.controls.transferDate.hasError('futureDate')) {
+          <div class="error">Transfer date cannot be in the future.</div>
+        }
+        @if (form.controls.transferDate.touched && form.controls.transferDate.hasError('server')) {
+          <div class="error">{{ serverError('transferDate') }}</div>
+        }
+      </div>
+    </div>
+
+    <div class="field" [class.invalid]="form.controls.reason.invalid && form.controls.reason.touched">
+      <label for="reason">Reason *</label>
+      <textarea
+        id="reason"
+        rows="3"
+        formControlName="reason"
+        placeholder="Why is this asset being transferred?"
+      ></textarea>
+      @if (form.controls.reason.touched && form.controls.reason.hasError('required')) {
+        <div class="error">Reason is required.</div>
+      }
+      @if (form.controls.reason.touched && form.controls.reason.hasError('maxlength')) {
+        <div class="error">Reason must be 500 characters or fewer.</div>
+      }
+      @if (form.controls.reason.touched && form.controls.reason.hasError('server')) {
+        <div class="error">{{ serverError('reason') }}</div>
+      }
+    </div>
+
+    <div class="row">
+      <button class="btn" type="submit" [disabled]="submitting() || asset.status === 'Retired'">
+        @if (submitting()) {
+          <span class="spinner spinner-sm"></span> Transferring…
+        } @else {
+          Transfer asset
+        }
+      </button>
+      <a class="btn btn-secondary" routerLink="/assets/{{ asset.id }}">Cancel</a>
+    </div>
+  </form>
+}

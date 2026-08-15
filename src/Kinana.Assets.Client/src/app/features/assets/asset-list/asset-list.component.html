@@ -1,0 +1,162 @@
+<div class="page-header">
+  <h1>Assets</h1>
+  <a class="btn" routerLink="/assets/new" *appAdminOnly>New asset</a>
+</div>
+
+<form class="card filters" [formGroup]="filterForm">
+  <div class="filter-grid">
+    <div class="field">
+      <label for="search">Search</label>
+      <input
+        id="search"
+        type="text"
+        formControlName="search"
+        placeholder="Code, name or serial number"
+      />
+    </div>
+    <div class="field">
+      <label for="categoryId">Category</label>
+      <select id="categoryId" formControlName="categoryId">
+        <option [ngValue]="null">All</option>
+        @for (category of lookups().categories; track category.id) {
+          <option [ngValue]="category.id">{{ category.name }}</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <label for="assetTypeId">Type</label>
+      <select id="assetTypeId" formControlName="assetTypeId">
+        <option [ngValue]="null">All</option>
+        @for (type of lookups().assetTypes; track type.id) {
+          <option [ngValue]="type.id">{{ type.name }}</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <label for="status">Status</label>
+      <select id="status" formControlName="status">
+        <option [ngValue]="null">All</option>
+        @for (status of statuses; track status) {
+          <option [ngValue]="status">{{ status }}</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <label for="departmentId">Department</label>
+      <select id="departmentId" formControlName="departmentId">
+        <option [ngValue]="null">All</option>
+        @for (department of lookups().departments; track department.id) {
+          <option [ngValue]="department.id">{{ department.name }}</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <label for="locationId">Location</label>
+      <select id="locationId" formControlName="locationId">
+        <option [ngValue]="null">All</option>
+        @for (location of lookups().locations; track location.id) {
+          <option [ngValue]="location.id">{{ location.name }}</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <label for="assignedEmployeeId">Assigned employee</label>
+      <select id="assignedEmployeeId" formControlName="assignedEmployeeId">
+        <option [ngValue]="null">All</option>
+        @for (employee of lookups().employees; track employee.id) {
+          <option [ngValue]="employee.id">{{ employee.name }}</option>
+        }
+      </select>
+    </div>
+  </div>
+</form>
+
+@if (loading()) {
+  <div class="card loading-state">
+    <div class="spinner spinner-lg"></div>
+    <span>Loading assets…</span>
+  </div>
+} @else if (error()) {
+  <div class="alert alert-error" role="alert">{{ error() }}</div>
+} @else if (assets().length === 0) {
+  <div class="card empty-state">
+    <span class="empty-title">No assets found</span>
+    <span>Try adjusting your search or filters.</span>
+  </div>
+} @else {
+  <div class="card table-card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="sortable" (click)="toggleSort('assetCode')">
+            Code
+            @if (sortBy() === 'assetCode') {
+              <span class="sort-indicator">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+            }
+          </th>
+          <th class="sortable" (click)="toggleSort('assetName')">
+            Name
+            @if (sortBy() === 'assetName') {
+              <span class="sort-indicator">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+            }
+          </th>
+          <th>Category</th>
+          <th>Status</th>
+          <th>Assigned to</th>
+          <th>Department</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (asset of assets(); track asset.id) {
+          <tr>
+            <td><a [routerLink]="['/assets', asset.id]">{{ asset.assetCode }}</a></td>
+            <td>{{ asset.assetName }}</td>
+            <td>{{ asset.categoryName }}</td>
+            <td><span class="badge" [class]="statusClass(asset.status)">{{ asset.status }}</span></td>
+            <td>{{ asset.assignedEmployeeName ?? '—' }}</td>
+            <td>{{ asset.departmentName ?? '—' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <div class="pagination">
+      <button
+        class="btn btn-sm btn-secondary"
+        (click)="changePage(page() - 1)"
+        [disabled]="page() <= 1"
+      >
+        Previous
+      </button>
+      @for (number of pageNumbers(); track number) {
+        <button
+          class="btn btn-sm"
+          [class.btn-secondary]="number !== page()"
+          (click)="changePage(number)"
+        >
+          {{ number }}
+        </button>
+      }
+      <button
+        class="btn btn-sm btn-secondary"
+        (click)="changePage(page() + 1)"
+        [disabled]="page() >= totalPages()"
+      >
+        Next
+      </button>
+      <select
+        class="page-size"
+        [value]="pageSize()"
+        (change)="onPageSizeChange($event)"
+        aria-label="Page size"
+      >
+        <option [value]="10">10 per page</option>
+        <option [value]="20">20 per page</option>
+        <option [value]="50">50 per page</option>
+      </select>
+    </div>
+    <p class="muted result-count">
+      {{ totalCount() }} asset{{ totalCount() === 1 ? '' : 's' }} found · page {{ page() }} of {{ totalPages() }}
+    </p>
+  </div>
+}

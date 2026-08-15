@@ -1,0 +1,167 @@
+@if (loading()) {
+  <div class="card loading-state">
+    <div class="spinner spinner-lg"></div>
+    <span>Loading asset…</span>
+  </div>
+} @else if (error()) {
+  <div class="alert alert-error" role="alert">{{ error() }}</div>
+  <a class="btn btn-secondary" routerLink="/assets">Back to assets</a>
+} @else if (asset(); as asset) {
+  <div class="page-header">
+    <h1>{{ asset.assetName }}</h1>
+    <div class="row">
+      <a class="btn btn-secondary" routerLink="/assets">Back</a>
+      <a class="btn" routerLink="/assets/{{ asset.id }}/edit" *appAdminOnly>Edit</a>
+      <a
+        class="btn btn-secondary"
+        routerLink="/assets/{{ asset.id }}/transfer"
+        *appAdminOnly
+        [class.disabled-link]="asset.status === 'Retired'"
+      >
+        Transfer
+      </a>
+      <button
+        class="btn btn-danger"
+        type="button"
+        *appAdminOnly
+        [disabled]="retiring() || asset.status === 'Retired'"
+        (click)="retire()"
+      >
+        @if (retiring()) {
+          <span class="spinner spinner-sm"></span> Retiring…
+        } @else {
+          Retire
+        }
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="asset-grid">
+      <div class="meta">
+        <span class="label">Code</span>
+        <span class="value">{{ asset.assetCode }}</span>
+      </div>
+      <div class="meta">
+        <span class="label">Status</span>
+        <span class="value">
+          <span class="badge" [class]="statusClass(asset.status)">{{ asset.status }}</span>
+        </span>
+      </div>
+      <div class="meta">
+        <span class="label">Category</span>
+        <span class="value">{{ asset.categoryName }}</span>
+      </div>
+      <div class="meta">
+        <span class="label">Type</span>
+        <span class="value">{{ asset.assetTypeName }}</span>
+      </div>
+      <div class="meta">
+        <span class="label">Manufacturer</span>
+        <span class="value">{{ asset.manufacturer }}</span>
+      </div>
+      <div class="meta">
+        <span class="label">Model</span>
+        <span class="value">{{ asset.model }}</span>
+      </div>
+      <div class="meta">
+        <span class="label">Serial number</span>
+        <span class="value">{{ asset.serialNumber ?? '—' }}</span>
+      </div>
+      <div class="meta">
+        <span class="label">Purchase date</span>
+        <span class="value">{{ asset.purchaseDate ?? '—' }}</span>
+      </div>
+      <div class="meta">
+        <span class="label">Purchase cost</span>
+        <span class="value">
+          @if (asset.purchaseCost === null) {
+            — (Admin only)
+          } @else {
+            {{ asset.purchaseCost | number: '1.2-2' }}
+          }
+        </span>
+      </div>
+      <div class="meta">
+        <span class="label">Warranty expiry</span>
+        <span class="value">{{ asset.warrantyExpiryDate ?? '—' }}</span>
+      </div>
+      <div class="meta">
+        <span class="label">Assigned employee</span>
+        <span class="value">{{ asset.assignedEmployeeName ?? '—' }}</span>
+      </div>
+      <div class="meta">
+        <span class="label">Department</span>
+        <span class="value">{{ asset.departmentName ?? '—' }}</span>
+      </div>
+      <div class="meta">
+        <span class="label">Location</span>
+        <span class="value">{{ asset.locationName ?? '—' }}</span>
+      </div>
+      <div class="meta">
+        <span class="label">Created</span>
+        <span class="value">
+          {{ asset.createdAtUtc | date: 'medium' }} by {{ asset.createdByUserName ?? '—' }}
+        </span>
+      </div>
+      <div class="meta">
+        <span class="label">Last modified</span>
+        <span class="value">
+          @if (asset.modifiedAtUtc) {
+            {{ asset.modifiedAtUtc | date: 'medium' }} by {{ asset.modifiedByUserName ?? '—' }}
+          } @else {
+            — Never
+          }
+        </span>
+      </div>
+    </div>
+
+    @if (asset.description) {
+      <div class="description">
+        <span class="label">Description</span>
+        <p>{{ asset.description }}</p>
+      </div>
+    }
+  </div>
+
+  <div class="card">
+    <h2>Transfer history</h2>
+    @if (asset.transfers.length === 0) {
+      <div class="empty-state">
+        <span class="empty-title">No transfers recorded</span>
+        <span>This asset has not been transferred yet.</span>
+      </div>
+    } @else {
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Reason</th>
+            <th>By</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (transfer of asset.transfers; track transfer.id) {
+            <tr>
+              <td>{{ transfer.transferDateUtc | date: 'medium' }}</td>
+              <td>
+                {{ transfer.fromEmployeeName ?? '—' }}
+                <span class="muted">· {{ transfer.fromDepartmentName ?? '—' }}</span>
+                <span class="muted">· {{ transfer.fromLocationName ?? '—' }}</span>
+              </td>
+              <td>
+                {{ transfer.toEmployeeName ?? '—' }}
+                <span class="muted">· {{ transfer.toDepartmentName ?? '—' }}</span>
+                <span class="muted">· {{ transfer.toLocationName ?? '—' }}</span>
+              </td>
+              <td>{{ transfer.reason ?? '—' }}</td>
+              <td>{{ transfer.transferredByUserName }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+}
