@@ -1,4 +1,4 @@
-write using FluentValidation;
+using FluentValidation;
 using Kinana.AssetManagement.Application.Assets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

@@ -1,0 +1,9 @@
+{
+  "name": "kinana-assets",
+  "private": true,
+  "scripts": {
+    "start": "npm start --prefix src/Kinana.Assets.Client",
+    "build": "npm run build --prefix src/Kinana.Assets.Client",
+    "test": "npm test --prefix src/Kinana.Assets.Client"
+  }
+}

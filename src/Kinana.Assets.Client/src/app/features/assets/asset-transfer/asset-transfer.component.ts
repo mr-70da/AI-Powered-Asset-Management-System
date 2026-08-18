@@ -29,6 +29,15 @@ export class AssetTransferComponent implements OnInit, CanComponentDeactivate {
   readonly errorMessage = signal('');
   readonly generalErrors = signal<string[]>([]);
 
+  private assetId = 0;
+
+  private notInFuture = (control: { value: string }): { futureDate: true } | null => {
+    if (!control.value) {
+      return null;
+    }
+    return control.value > new Date().toISOString().slice(0, 10) ? { futureDate: true } : null;
+  };
+
   readonly form = this.fb.nonNullable.group({
     toDepartmentId: [null as number | null],
     toEmployeeId: [null as number | null],
@@ -36,8 +45,6 @@ export class AssetTransferComponent implements OnInit, CanComponentDeactivate {
     transferDate: [this.today(), [Validators.required, this.notInFuture]],
     reason: ['', [Validators.required, Validators.maxLength(500)]]
   });
-
-  private assetId = 0;
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -53,13 +60,6 @@ export class AssetTransferComponent implements OnInit, CanComponentDeactivate {
   private today(): string {
     return new Date().toISOString().slice(0, 10);
   }
-
-  private notInFuture = (control: { value: string }): { futureDate: true } | null => {
-    if (!control.value) {
-      return null;
-    }
-    return control.value > new Date().toISOString().slice(0, 10) ? { futureDate: true } : null;
-  };
 
   private loadAsset(): void {
     this.assetService.getAsset(this.assetId).subscribe({
