@@ -130,6 +130,7 @@ an explicit "No assets found" empty state, and a readable error state.
 | `POST /api/assets/{id}/transfer` | Admin | Record a transfer — transaction + optimistic concurrency (R3.3, R3.4, R3.5) |
 | `GET /api/assets/{id}/transfers` | Any authenticated user | Full transfer history in chronological order (R3.2) |
 | `GET /api/lookups` | Any authenticated user | Reference data (categories, types, departments, locations, employees) — cached (R5.1) |
+| `POST /api/ai/ask` | Any authenticated user | Natural-language question about the asset register (R4) — rate-limited per user |
 | `GET /health` | Anonymous | Liveness check |
 
 Every other endpoint requires a valid token; a missing/invalid token returns `401`
@@ -252,3 +253,156 @@ connection string, network blip) the API keeps serving from SQL Server and
 reconnects automatically once Redis is back; no request fails because of the
 cache. Writes always go to SQL Server first, so the cache can never lose data —
 at worst it serves stale data for up to its TTL.
+
+## AI assistant (R4)
+
+A signed-in user (either role) asks a question in plain language and receives a
+text answer **plus** the underlying rows, rendered in the Angular AI screen as
+a paragraph and a table.
+
+### How it works (R4.4, R4.2)
+
+```
+Question ──▶ System prompt + question ──▶ LLM ──▶ strict-JSON AssetSearchIntent
+                                                    │
+                                                    ▼
+                              resolve names → IDs → SearchAssetsQuery
+                                                    │
+                                                    ▼
+              existing read-only query (AssetQueries.ApplyFilters + Project)
+                                                    │
+                                                    ▼
+                      answer text composed from the actual rows + rows
+```
+
+1. `POST /api/ai/ask { question }` → `AiController` → `AiService.AskAsync`.
+2. `IAiProvider` (owned abstraction) is asked to complete the system prompt +
+   the user's question. The system prompt (R4.7) requires a strict JSON
+   `AssetSearchIntent` (`intentType`, `searchTerm`, `categoryName`,
+   `assetTypeName`, `status`, `departmentName`, `locationName`,
+   `assignedEmployeeName`, `countOnly`, `answer`) and contains an injection
+   guard that tells the model to ignore any instructions smuggled inside the
+   question.
+3. `AiIntentParser` deserialises the JSON (tolerating markdown fences) and the
+   service maps each name field onto a real row **ID** — an unknown name yields
+   a friendly "I couldn't find a department called 'X'" answer instead of an
+   error.
+4. The resolved `SearchAssetsQuery` runs through the **same** `AssetQueries`
+   filter + projection the asset list endpoint uses, so a question is executed
+   by exactly the same read path as a manual search.
+5. The answer text is composed deterministically in C# from the returned rows
+   (e.g. "Found 2 matching assets (type Laptop, 'Dell'): AST-0001 (Dell
+   Latitude 5540)…"). The model never writes the answer narrative, so numbers
+   are always grounded in the database and can't be hallucinated. Count-only
+   questions return the total count; value questions sum `PurchaseCost`.
+
+### Why intent-based, and why it is read-only (R4.1, R4.2)
+
+I chose **option (a) — the model produces a structured intent object that the
+existing repository executes** — rather than letting the model generate SQL.
+
+- **The enforcement mechanism is structural, not a prompt.** The AI pipeline
+  (`AiService`) is injected with `IAssetReadRepository`, a read-only repository
+  surface that exposes only `IQueryable<T>` properties for reading. It has no
+  `AddAsync`, `SaveChangesAsync`, or transaction members, so the AI path cannot
+  reach a write even in principle. The full write-capable `IAssetRepository` is
+  never available to it. No `DbContext` is injected anywhere in the AI pipeline.
+- The intent object is additionally constrained: it can only describe filters
+  over the existing `SearchAssetsQuery`, which the repository then applies to
+  reads. There is no string-to-SQL surface to inject anything through.
+
+**Failure modes** of this approach (and how they're handled): a model that
+invents a department/employee name produces a graceful "couldn't find 'X'"
+answer; a model that returns non-JSON or garbage produces a graceful
+out-of-scope answer (the request still succeeds with a readable message); a
+model that can't be reached at all surfaces as a clean `503 Service
+Unavailable` (see R4.5). The trade-off versus the read-only-SQL approach is
+that it can only express questions that map onto the existing filter shape —
+anything else is answered as out-of-scope, which is acceptable for this
+product.
+
+### Role awareness (R4.3, R2.6)
+
+The controller passes `includeCost = User.IsInRole("Admin")` into the service,
+exactly like the asset endpoints. A `User` asking about cost or portfolio value
+receives *"Purchase cost information is restricted to administrators, so I
+can't show cost figures for your account."* — no number, not even a masked one —
+and the returned rows have `purchaseCost` forced to `null`. An `Admin` gets the
+sum. Answers are cached per role so an Admin answer can never be served to a
+User.
+
+### Graceful failure behaviour (R4.5)
+
+| Situation | Behaviour |
+|-----------|-----------|
+| Out-of-scope question | `200` with a friendly text answer, no rows |
+| Empty result set | `200` with "I couldn't find any assets matching …", no rows |
+| Unknown department / employee / etc. | `200` with a clear "couldn't find 'X'" answer |
+| Provider timeout / 5xx | `503` problem+json, friendly detail |
+| Provider returns 429 | rotate to the next API key and retry; if all exhausted, `503` |
+| Client asks too often | `429` problem+json (rate limiter) |
+| Provider output unparseable | logged; `200` with a graceful fallback answer |
+
+The controller is thin and needs no per-action `try/catch`: the single
+`ApiExceptionMiddleware` is the global error boundary and guarantees no stack
+trace or SQL text reaches the client.
+
+### Rate limiting (R4.7)
+
+`AddRateLimiter` in `Program.cs` applies a fixed window (default **5
+requests/min/user**, configurable via `Ai:MaxRequestsPerMinutePerUser`) to the
+`/api/ai/ask` endpoint only, partitioned by the user id claim (falling back to
+the client IP). Responses use `429` with `application/problem+json`; the Angular
+interceptor surfaces them as a friendly "too many requests" message.
+
+### Prompt injection (R4.7)
+
+The system prompt instructs the model to ignore any instructions inside the
+user's message (including "ignore this prompt", format changes, or write
+requests) and to output only the read-only intent JSON. Stored asset text is
+**not** sent to the model, so there is no vector through the asset register
+itself; the guard covers the direct user-input vector. The real defence is
+still structural: even a successfully injected model can only produce an intent
+object, which maps onto read-only filters.
+
+### Credentials (R4.6)
+
+- The default provider is a deterministic **local stub** (`Ai:Provider =
+  "stub"`) so the whole feature runs without any provider credentials. It
+  returns the same strict-JSON intent contract as the real provider, so the
+  pipeline is identical either way.
+- Set `Ai:Provider = "openai"` to use an OpenAI-compatible `/chat/completions`
+  endpoint. Keys come from **one** of:
+  - a gitignored `api_keys.txt` at the repo root (one key per line, `#`
+    comments allowed) — `ApiKeyRotator` cycles through them on 429s; or
+  - a single key via `dotnet user-secrets set "Ai:ApiKey" "..."` or the
+    `KASM__Ai__ApiKey` environment variable.
+- `appsettings.json` holds only placeholders; the Angular app never holds or
+  calls the provider — all AI traffic goes through the API.
+- The provider is registered behind the owned `IAiProvider` interface
+  (swap/fake-able in tests).
+
+### Configuration
+
+| Key | Default | Purpose |
+|-----|---------|---------|
+| `Ai:Provider` | `stub` | `stub` or `openai` |
+| `Ai:Endpoint` / `Ai:Model` | OpenAI-compatible URL / model | provider request target |
+| `Ai:ApiKey` | placeholder | single-key fallback (user-secrets/env) |
+| `Ai:KeyFilePath` | `api_keys.txt` | rotated key file (gitignored) |
+| `Ai:TimeoutSeconds` | `20` | HTTP timeout before `503` |
+| `Ai:MaxRows` | `50` | max rows returned in a response |
+| `Ai:MaxRequestsPerMinutePerUser` | `5` | per-user endpoint rate limit |
+| `CacheSettings:AiAnswerTtlMinutes` | `10` | AI answer cache TTL |
+
+### AI answer caching (R5.8 bonus)
+
+Cache-aside on top of the answer flow. Keys are
+`KinanaAssets:{Role}:Ai:{sha256(question)[..16]}`, so the role is part of the
+key (R5.4) and reworded-but-equivalent questions share an entry. TTL defaults
+to 10 minutes. **Writes invalidate AI answers too** — `InvalidateAssetCachesAsync`
+evicts the `KinanaAssets:*:Ai:*` prefix on create/edit/retire/transfer, so an
+answer can never outlive the data it was grounded in (R5.3). Stampede
+protection (serialising concurrent misses of the same question) is noted as a
+known limitation rather than implemented: for this traffic profile the
+cost/benefit did not justify a distributed lock.

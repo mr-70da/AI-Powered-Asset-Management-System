@@ -1,0 +1,86 @@
+<div class="page-header">
+  <h1>Ask about your assets</h1>
+</div>
+
+<div class="card ai-input-card">
+  <label class="field-label" for="question">Your question</label>
+  <textarea
+    id="question"
+    rows="3"
+    [value]="question()"
+    (input)="question.set($any($event.target).value)"
+    placeholder="e.g. Show me all laptops currently assigned to the Presales department."
+    [attr.aria-busy]="isLoading()"
+  ></textarea>
+
+  <div class="ai-actions">
+    <button class="btn" (click)="ask()" [disabled]="isLoading() || !question().trim()">
+      @if (isLoading()) {
+        <span class="spinner spinner-sm" aria-hidden="true"></span>
+        Asking…
+      } @else {
+        Ask
+      }
+    </button>
+    <span class="muted hint">Example questions to try:</span>
+  </div>
+
+  <ul class="examples">
+    @for (example of examples; track example) {
+      <li>
+        <button type="button" class="btn btn-sm btn-secondary" (click)="useExample(example)" [disabled]="isLoading()">
+          {{ example }}
+        </button>
+      </li>
+    }
+  </ul>
+</div>
+
+@if (error()) {
+  <div class="alert alert-error" role="alert">{{ error() }}</div>
+}
+
+@if (asked() && !isLoading() && !error()) {
+  <div class="card ai-answer">
+    <h2>Answer</h2>
+    <p class="ai-answer-text">{{ answer() }}</p>
+  </div>
+}
+
+@if (rows().length > 0) {
+  <div class="card table-card">
+    <h2>Matching assets</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Name</th>
+          <th>Category</th>
+          <th>Status</th>
+          <th>Assigned to</th>
+          <th>Department</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (asset of rows(); track asset.id) {
+          <tr>
+            <td><a [routerLink]="['/assets', asset.id]">{{ asset.assetCode }}</a></td>
+            <td>{{ asset.assetName }}</td>
+            <td>{{ asset.categoryName }}</td>
+            <td><span class="badge" [class]="statusClass(asset.status)">{{ asset.status }}</span></td>
+            <td>{{ asset.assignedEmployeeName ?? '—' }}</td>
+            <td>{{ asset.departmentName ?? '—' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    @if (totalCount() > rows().length) {
+      <p class="muted result-count">Showing {{ rows().length }} of {{ totalCount() }} matching assets.</p>
+    }
+  </div>
+} @else if (emptyState()) {
+  <div class="card empty-state">
+    <span class="empty-title">No asset rows to show</span>
+    <span>The question was answered above; it did not match any asset rows.</span>
+  </div>
+}

@@ -1,12 +1,16 @@
+using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 using Kinana.AssetManagement.Api.Middleware;
 using Kinana.AssetManagement.Api.Services;
 using Kinana.AssetManagement.Application;
+using Kinana.AssetManagement.Application.Ai;
 using Kinana.AssetManagement.Application.Auth;
 using Kinana.AssetManagement.Application.Common;
 using Kinana.AssetManagement.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
@@ -47,6 +51,43 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add(new AuthorizeFilter());
+});
+
+var aiSettings = builder.Configuration
+    .GetSection(AiSettings.SectionName)
+    .Get<AiSettings>() ?? new AiSettings();
+
+// R4.7: rate limit the AI endpoint per user (falls back to the client IP for
+// authenticated principals that somehow lack the id claim).
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, ct) =>
+    {
+        context.HttpContext.Response.ContentType = "application/problem+json";
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            type = "about:blank",
+            title = "Too Many Requests",
+            status = StatusCodes.Status429TooManyRequests,
+            detail = "You have sent too many requests. Please wait a moment and try again."
+        }, ct);
+    };
+    options.AddPolicy("ai-per-user", httpContext =>
+    {
+        var partitionKey = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? httpContext.Connection.RemoteIpAddress?.ToString()
+            ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = Math.Max(1, aiSettings.MaxRequestsPerMinutePerUser),
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
 });
 
 var corsOrigins = builder.Configuration
@@ -97,6 +138,7 @@ app.UseHttpsRedirection();
 app.UseCors("AngularClient");
 
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
