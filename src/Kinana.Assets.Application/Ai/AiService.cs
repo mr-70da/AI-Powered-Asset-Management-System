@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Kinana.AssetManagement.Infrastructure.Services;
+namespace Kinana.AssetManagement.Application.Ai;
 
 public sealed class AiService : IAiService
 {

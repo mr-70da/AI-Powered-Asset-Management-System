@@ -4,7 +4,7 @@ using Kinana.AssetManagement.Application.Lookups;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace Kinana.AssetManagement.Infrastructure.Services;
+namespace Kinana.AssetManagement.Application.Lookups;
 
 public sealed class LookupService : ILookupService
 {

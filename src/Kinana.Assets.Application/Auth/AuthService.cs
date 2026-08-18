@@ -1,10 +1,9 @@
 using System.Security.Cryptography;
-using Kinana.AssetManagement.Application.Auth;
 using Kinana.AssetManagement.Application.Exceptions;
 using Kinana.AssetManagement.Domain.Entities;
 using Microsoft.Extensions.Options;
 
-namespace Kinana.AssetManagement.Infrastructure.Services;
+namespace Kinana.AssetManagement.Application.Auth;
 
 public sealed class AuthService : IAuthService
 {

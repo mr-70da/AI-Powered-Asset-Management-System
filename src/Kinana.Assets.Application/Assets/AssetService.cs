@@ -6,7 +6,7 @@ using Kinana.AssetManagement.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace Kinana.AssetManagement.Infrastructure.Services;
+namespace Kinana.AssetManagement.Application.Assets;
 
 public sealed class AssetService : IAssetService
 {

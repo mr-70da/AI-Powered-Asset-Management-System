@@ -2,12 +2,10 @@ using Kinana.AssetManagement.Application.Ai;
 using Kinana.AssetManagement.Application.Assets;
 using Kinana.AssetManagement.Application.Auth;
 using Kinana.AssetManagement.Application.Caching;
-using Kinana.AssetManagement.Application.Lookups;
 using Kinana.AssetManagement.Infrastructure.Ai;
 using Kinana.AssetManagement.Infrastructure.Caching;
 using Kinana.AssetManagement.Infrastructure.Data;
 using Kinana.AssetManagement.Infrastructure.Security;
-using Kinana.AssetManagement.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -50,12 +48,6 @@ public static class DependencyInjection
         {
             services.AddSingleton<IAiProvider, StubAiProvider>();
         }
-
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IUserAdminService, UserAdminService>();
-        services.AddScoped<IAssetService, AssetService>();
-        services.AddScoped<IAiService, AiService>();
-        services.AddScoped<ILookupService, LookupService>();
 
         return services;
     }
