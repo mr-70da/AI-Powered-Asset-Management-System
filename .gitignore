@@ -367,3 +367,4 @@ FodyWeavers.xsd
 /.env
 /prompt.txt
 /api_keys.txt
+/requirements-audit.html

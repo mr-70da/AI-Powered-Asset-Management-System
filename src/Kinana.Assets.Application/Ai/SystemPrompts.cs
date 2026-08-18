@@ -7,7 +7,7 @@ namespace Kinana.AssetManagement.Application.Ai;
 /// question (R4.7). The answer is never trusted as executable input — the
 /// intent is only ever mapped onto read-only filters (R4.1).
 /// </summary>
-internal static class SystemPrompts
+public static class SystemPrompts
 {
     public const string AssetIntent = """
         You are a read-only assistant for a corporate asset register. Convert the user's

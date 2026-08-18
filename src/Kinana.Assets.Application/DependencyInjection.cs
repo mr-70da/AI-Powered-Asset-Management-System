@@ -11,16 +11,10 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IUserAdminService, UserAdminService>();
-
         services.AddScoped<IValidator<CreateAssetRequest>, CreateAssetRequestValidator>();
         services.AddScoped<IValidator<UpdateAssetRequest>, UpdateAssetRequestValidator>();
         services.AddScoped<IValidator<TransferAssetRequest>, TransferAssetRequestValidator>();
         services.AddScoped<IValidator<AiChatRequest>, AiChatRequestValidator>();
-        services.AddScoped<IAssetService, AssetService>();
-        services.AddScoped<IAiService, AiService>();
-        services.AddScoped<ILookupService, LookupService>();
 
         return services;
     }

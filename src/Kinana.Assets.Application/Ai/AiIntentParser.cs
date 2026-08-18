@@ -7,7 +7,7 @@ namespace Kinana.AssetManagement.Application.Ai;
 /// Defensive about common provider quirks: markdown fences around the JSON and
 /// optional surrounding prose are stripped before deserialization.
 /// </summary>
-internal static class AiIntentParser
+public static class AiIntentParser
 {
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
 
