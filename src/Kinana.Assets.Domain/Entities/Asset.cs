@@ -21,7 +21,7 @@ public partial class Asset
 
     public string Model { get; set; } = null!;
 
-    public string? SerialNumber { get; set; }
+    public string SerialNumber { get; set; } = null!;
 
     public DateOnly? PurchaseDate { get; set; }
 

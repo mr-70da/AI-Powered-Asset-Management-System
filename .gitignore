@@ -364,3 +364,7 @@ FodyWeavers.xsd
 /requirements.txt
 /src/Kinana.Assets.Api/appsettings.Development.json
 /src/Kinana.Assets.Api/appsettings.json
+/requirements-audit.html
+/prompt.txt
+/api_keys.txt
+/.env

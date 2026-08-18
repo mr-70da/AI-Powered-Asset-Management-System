@@ -16,7 +16,7 @@ public sealed record CreateAssetRequest
 
     public string Model { get; init; } = string.Empty;
 
-    public string? SerialNumber { get; init; }
+    public string SerialNumber { get; init; } = string.Empty;
 
     public DateOnly? PurchaseDate { get; init; }
 
@@ -49,7 +49,7 @@ public sealed record UpdateAssetRequest
 
     public string Model { get; init; } = string.Empty;
 
-    public string? SerialNumber { get; init; }
+    public string SerialNumber { get; init; } = string.Empty;
 
     public DateOnly? PurchaseDate { get; init; }
 

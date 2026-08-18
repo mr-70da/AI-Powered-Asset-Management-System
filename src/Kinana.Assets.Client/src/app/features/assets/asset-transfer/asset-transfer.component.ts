@@ -54,12 +54,12 @@ export class AssetTransferComponent implements OnInit, CanComponentDeactivate {
     return new Date().toISOString().slice(0, 10);
   }
 
-  private notInFuture(control: { value: string }): { futureDate: true } | null {
+  private notInFuture = (control: { value: string }): { futureDate: true } | null => {
     if (!control.value) {
       return null;
     }
-    return control.value > this.today() ? { futureDate: true } : null;
-  }
+    return control.value > new Date().toISOString().slice(0, 10) ? { futureDate: true } : null;
+  };
 
   private loadAsset(): void {
     this.assetService.getAsset(this.assetId).subscribe({

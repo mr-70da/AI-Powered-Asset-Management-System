@@ -62,7 +62,10 @@ export class AssetDetailComponent implements OnInit {
     }
     this.retiring.set(true);
     this.assetService.retireAsset(asset.id).subscribe({
-      next: () => this.loadAsset(asset.id),
+      next: () => {
+        this.retiring.set(false);
+        this.loadAsset(asset.id);
+      },
       error: () => {
         this.retiring.set(false);
         this.error.set('Failed to retire the asset. Please try again.');
