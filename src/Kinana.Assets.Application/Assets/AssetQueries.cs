@@ -8,7 +8,7 @@ namespace Kinana.AssetManagement.Application.Assets;
 /// and projection logic as a manual search (R4.2: "your existing repository
 /// executes"). No EF write method lives here.
 /// </summary>
-internal static class AssetQueries
+public static class AssetQueries
 {
     public static IQueryable<Asset> ApplyFilters(IQueryable<Asset> query, SearchAssetsQuery q)
     {

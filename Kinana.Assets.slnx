@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <File Path="prompt.txt" />
     <Project Path="src/Kinana.Assets.Api/Kinana.Assets.Api.csproj" />
     <Project Path="src/Kinana.Assets.Application/Kinana.Assets.Application.csproj" />
     <Project Path="src/Kinana.Assets.Domain/Kinana.Assets.Domain.csproj" />

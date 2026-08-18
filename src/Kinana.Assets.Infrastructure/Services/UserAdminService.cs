@@ -1,7 +1,8 @@
+using Kinana.AssetManagement.Application.Auth;
 using Kinana.AssetManagement.Application.Exceptions;
 using Kinana.AssetManagement.Domain.Entities;
 
-namespace Kinana.AssetManagement.Application.Auth;
+namespace Kinana.AssetManagement.Infrastructure.Services;
 
 public sealed class UserAdminService : IUserAdminService
 {
